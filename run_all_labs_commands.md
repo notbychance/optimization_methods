@@ -71,6 +71,7 @@ python main.py -n 5 -i lab5_shortest_path_example.json -o results/lab5_shortest_
 python main.py -n 5 -i lab5_mst_example.json -o results/lab5_mst_example.md
 python main.py -n 5 -i lab5_max_flow_example.json -o results/lab5_max_flow_example.md
 python main.py -n 5 -i lab5_min_cost_flow_example.json -o results/lab5_min_cost_flow_example.md
+python main.py -n 5 -i lab5_project_scheduling_example.json -o results/lab5_project_scheduling_example.md
 ```
 
 Если во входном файле вместо конкретной матрицы поля задано текстовое описание, модуль завершится штатным статусом `input_required`.
