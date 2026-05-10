@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from fraction_tools import to_fraction
-from game_models import BimatrixGameProblem, DecisionProblem, MatrixGameProblem
+from game_models import BimatrixGameProblem, DecisionProblem, MatrixGameProblem, PreventiveMaintenanceProblem
 
 
 class ProblemReader:
     @staticmethod
-    def read(file_path: str) -> tuple[str, MatrixGameProblem | DecisionProblem | BimatrixGameProblem]:
+    def read(file_path: str) -> tuple[str, MatrixGameProblem | DecisionProblem | BimatrixGameProblem | PreventiveMaintenanceProblem]:
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f'Файл с условием не найден: {file_path}')
@@ -28,8 +28,10 @@ class ProblemReader:
             return task_type, ProblemReader._read_decision_problem(data)
         if task_type == 'bimatrix':
             return task_type, ProblemReader._read_bimatrix_game(data)
+        if task_type == 'preventive_maintenance_decision_tree':
+            return task_type, ProblemReader._read_preventive_maintenance_problem(data)
 
-        raise ValueError("Поле task_type должно быть одним из значений: 'matrix_game', 'decision', 'bimatrix'.")
+        raise ValueError("Поле task_type должно быть одним из значений: 'matrix_game', 'decision', 'bimatrix', 'preventive_maintenance_decision_tree'.")
 
     @staticmethod
     def _read_matrix_game(data: Dict[str, Any]) -> MatrixGameProblem:
@@ -82,6 +84,75 @@ class ProblemReader:
             row_strategy_names=row_strategy_names,
             column_strategy_names=column_strategy_names,
         )
+
+
+    @staticmethod
+    def _read_preventive_maintenance_problem(data: Dict[str, Any]) -> PreventiveMaintenanceProblem:
+        fleet_size = int(data.get('fleet_size', 1))
+        if fleet_size <= 0:
+            raise ValueError('Поле fleet_size должно быть положительным целым числом.')
+
+        raw_probabilities = data.get('failure_probability_by_month')
+        if raw_probabilities is None:
+            raise ValueError('Для задачи preventive_maintenance_decision_tree нужно поле failure_probability_by_month.')
+
+        probabilities: Dict[int, Any] = {}
+        later_probability = None
+
+        if isinstance(raw_probabilities, dict):
+            for raw_key, raw_value in raw_probabilities.items():
+                key = str(raw_key).strip().lower()
+                if key in {'later', 'and_later', '11_and_later', '11+', 'after_10'}:
+                    later_probability = to_fraction(raw_value)
+                else:
+                    try:
+                        month = int(key)
+                    except ValueError as exception:
+                        raise ValueError(f'Недопустимый ключ месяца в failure_probability_by_month: {raw_key}') from exception
+                    probabilities[month] = to_fraction(raw_value)
+        elif isinstance(raw_probabilities, list):
+            for index, raw_value in enumerate(raw_probabilities, start=1):
+                probabilities[index] = to_fraction(raw_value)
+        else:
+            raise ValueError('Поле failure_probability_by_month должно быть объектом или списком.')
+
+        if len(probabilities) == 0:
+            raise ValueError('Должна быть задана хотя бы одна вероятность поломки по месяцам.')
+
+        if later_probability is None:
+            last_month = max(probabilities)
+            later_probability = probabilities[last_month]
+
+        for month, probability in probabilities.items():
+            ProblemReader._validate_probability(probability, f'вероятность для месяца {month}')
+        ProblemReader._validate_probability(later_probability, 'вероятность для последующих месяцев')
+
+        random_failure_cost = to_fraction(data.get('random_failure_cost'))
+        preventive_repair_cost = to_fraction(data.get('preventive_repair_cost'))
+        if random_failure_cost < 0:
+            raise ValueError('Стоимость случайной поломки не может быть отрицательной.')
+        if preventive_repair_cost < 0:
+            raise ValueError('Стоимость профилактического ремонта не может быть отрицательной.')
+
+        max_cycle_months = int(data.get('max_cycle_months', 60))
+        if max_cycle_months <= 0:
+            raise ValueError('Поле max_cycle_months должно быть положительным целым числом.')
+
+        return PreventiveMaintenanceProblem(
+            fleet_size=fleet_size,
+            failure_probability_by_month=probabilities,
+            later_failure_probability=later_probability,
+            random_failure_cost=random_failure_cost,
+            preventive_repair_cost=preventive_repair_cost,
+            max_cycle_months=max_cycle_months,
+            source=str(data.get('source')) if data.get('source') is not None else None,
+            condition_summary=str(data.get('condition_summary')) if data.get('condition_summary') is not None else None,
+        )
+
+    @staticmethod
+    def _validate_probability(probability, field_name: str) -> None:
+        if probability < 0 or probability > 1:
+            raise ValueError(f'{field_name} должна быть в диапазоне от 0 до 1.')
 
     @staticmethod
     def _read_fraction_matrix(data: Dict[str, Any], field_name: str) -> List[List]:

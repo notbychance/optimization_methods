@@ -70,3 +70,49 @@ class BimatrixGameResult:
     status: str
     pure_equilibria: List[NashEquilibrium]
     message: str
+
+
+@dataclass
+class PreventiveMaintenanceProblem:
+    fleet_size: int
+    failure_probability_by_month: Dict[int, Fraction]
+    later_failure_probability: Fraction
+    random_failure_cost: Fraction
+    preventive_repair_cost: Fraction
+    max_cycle_months: int
+    source: Optional[str] = None
+    condition_summary: Optional[str] = None
+
+
+@dataclass
+class PreventiveMaintenanceCycleRow:
+    cycle_months: int
+    expected_cycle_cost_per_vehicle: Fraction
+    expected_cycle_length_months: Fraction
+    average_cost_per_vehicle_per_month: Fraction
+    expected_cycle_cost_for_fleet: Fraction
+    average_cost_for_fleet_per_month: Fraction
+    survival_probability_to_preventive_repair: Fraction
+    failure_probability_before_preventive_repair: Fraction
+
+
+@dataclass
+class PreventiveMaintenanceMonthRow:
+    month: int
+    conditional_failure_probability: Fraction
+    survival_probability_before_month: Fraction
+    unconditional_failure_probability: Fraction
+    survival_probability_after_month: Fraction
+    expected_failure_cost_per_vehicle: Fraction
+    expected_duration_contribution: Fraction
+
+
+@dataclass
+class PreventiveMaintenanceResult:
+    status: str
+    optimal_cycle_months: Optional[int]
+    minimal_average_cost_per_vehicle_per_month: Optional[Fraction]
+    minimal_average_cost_for_fleet_per_month: Optional[Fraction]
+    cycle_rows: List[PreventiveMaintenanceCycleRow]
+    optimal_month_rows: List[PreventiveMaintenanceMonthRow]
+    message: str

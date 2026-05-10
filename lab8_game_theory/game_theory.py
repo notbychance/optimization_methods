@@ -13,6 +13,10 @@ from game_models import (
     MatrixGameProblem,
     MatrixGameResult,
     NashEquilibrium,
+    PreventiveMaintenanceCycleRow,
+    PreventiveMaintenanceMonthRow,
+    PreventiveMaintenanceProblem,
+    PreventiveMaintenanceResult,
 )
 from matrix_tools import MatrixTools
 from snapshot import SnapshotWriter
@@ -59,6 +63,10 @@ class MatrixGameSolver:
         self._snapshot_saddle_absence()
         mixed_result = self._solve_mixed_by_support_enumeration()
         return mixed_result
+
+    @staticmethod
+    def _format_decimal(value: Fraction, digits: int = 6) -> str:
+        return f'{float(value):.{digits}f}'
 
     def _validate(self) -> None:
         matrix = self.problem.payoff_matrix
@@ -645,3 +653,203 @@ class BimatrixGameSolver:
             raise ValueError('Количество стратегий первого игрока не совпадает с числом строк.')
         if len(self.problem.column_strategy_names) != column_count:
             raise ValueError('Количество стратегий второго игрока не совпадает с числом столбцов.')
+
+
+class PreventiveMaintenanceDecisionTreeSolver:
+    def __init__(self, problem: PreventiveMaintenanceProblem, snapshot_writer: Optional[SnapshotWriter] = None):
+        self.problem = problem
+        self.snapshot_writer = snapshot_writer
+
+    def solve(self) -> PreventiveMaintenanceResult:
+        self._validate()
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_table(
+                title='Исходные данные задачи профилактического ремонта',
+                headers=['Параметр', 'Значение'],
+                rows=[
+                    ['Источник', self.problem.source or '-'],
+                    ['Краткое условие', self.problem.condition_summary or '-'],
+                    ['Количество автомобилей', self.problem.fleet_size],
+                    ['Стоимость случайной поломки одного автомобиля', self.problem.random_failure_cost],
+                    ['Стоимость планового профилактического ремонта одного автомобиля', self.problem.preventive_repair_cost],
+                    ['Максимальная проверяемая длина цикла, месяцев', self.problem.max_cycle_months],
+                ],
+                notes='Рассматривается дерево решений: сначала выбирается длина профилактического цикла, затем по месяцам возможна случайная поломка или дожитие до планового ремонта.',
+            )
+            self.snapshot_writer.write_table(
+                title='Вероятности поломки по возрасту автомобиля',
+                headers=['Месяц эксплуатации', 'Условная вероятность поломки в месяце'],
+                rows=[
+                    [month, self._failure_probability(month)]
+                    for month in range(1, min(self.problem.max_cycle_months, 15) + 1)
+                ] + [['после последнего явно заданного месяца', self.problem.later_failure_probability]],
+            )
+
+        cycle_rows: List[PreventiveMaintenanceCycleRow] = []
+        details_by_cycle: Dict[int, List[PreventiveMaintenanceMonthRow]] = {}
+
+        for cycle_months in range(1, self.problem.max_cycle_months + 1):
+            cycle_row, month_rows = self._evaluate_cycle(cycle_months)
+            cycle_rows.append(cycle_row)
+            details_by_cycle[cycle_months] = month_rows
+
+        optimal_row = min(cycle_rows, key=lambda row: row.average_cost_per_vehicle_per_month)
+        optimal_month_rows = details_by_cycle[optimal_row.cycle_months]
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_table(
+                title='Сравнение альтернатив профилактического цикла',
+                headers=[
+                    'Цикл, мес.',
+                    'Ожидаемая стоимость цикла на 1 авто',
+                    'Ожидаемая длительность цикла',
+                    'Средняя стоимость на 1 авто в месяц',
+                    'Средняя стоимость парка в месяц',
+                    'Вероятность дойти до планового ремонта',
+                ],
+                rows=[
+                    [
+                        row.cycle_months,
+                        self._format_decimal(row.expected_cycle_cost_per_vehicle),
+                        self._format_decimal(row.expected_cycle_length_months),
+                        self._format_decimal(row.average_cost_per_vehicle_per_month),
+                        self._format_decimal(row.average_cost_for_fleet_per_month),
+                        self._format_decimal(row.survival_probability_to_preventive_repair),
+                    ]
+                    for row in cycle_rows
+                ],
+                notes='Выбирается цикл с минимальной ожидаемой стоимостью на месяц. Стоимость для парка умножается на количество автомобилей.',
+            )
+            self.snapshot_writer.write_table(
+                title=f'Дерево решений для оптимального цикла {optimal_row.cycle_months} мес.',
+                headers=[
+                    'Месяц',
+                    'P(поломка | дожил до месяца)',
+                    'P(дожил до начала месяца)',
+                    'P(поломка именно в месяце)',
+                    'P(дожил после месяца)',
+                    'Ожидаемая стоимость поломки на 1 авто',
+                    'Вклад в ожидаемую длительность',
+                ],
+                rows=[
+                    [
+                        row.month,
+                        self._format_decimal(row.conditional_failure_probability),
+                        self._format_decimal(row.survival_probability_before_month),
+                        self._format_decimal(row.unconditional_failure_probability),
+                        self._format_decimal(row.survival_probability_after_month),
+                        self._format_decimal(row.expected_failure_cost_per_vehicle),
+                        self._format_decimal(row.expected_duration_contribution),
+                    ]
+                    for row in optimal_month_rows
+                ],
+                notes='Каждая строка соответствует ветви дерева: автомобиль может сломаться в этом месяце или перейти к следующему месяцу эксплуатации.',
+            )
+            self.snapshot_writer.write_table(
+                title='Итоговая рекомендация по 17-му варианту',
+                headers=['Показатель', 'Значение'],
+                rows=[
+                    ['Оптимальная длина цикла профилактического ремонта', f'{optimal_row.cycle_months} мес.'],
+                    ['Минимальная средняя стоимость на 1 автомобиль в месяц', self._format_decimal(optimal_row.average_cost_per_vehicle_per_month)],
+                    ['Минимальная средняя стоимость для всего парка в месяц', self._format_decimal(optimal_row.average_cost_for_fleet_per_month)],
+                    ['Ожидаемая стоимость одного цикла на 1 автомобиль', self._format_decimal(optimal_row.expected_cycle_cost_per_vehicle)],
+                    ['Ожидаемая длительность одного цикла, месяцев', self._format_decimal(optimal_row.expected_cycle_length_months)],
+                    ['Вероятность случайной поломки до планового ремонта', self._format_decimal(optimal_row.failure_probability_before_preventive_repair)],
+                    ['Вероятность планового профилактического ремонта без поломки', self._format_decimal(optimal_row.survival_probability_to_preventive_repair)],
+                ],
+            )
+
+        return PreventiveMaintenanceResult(
+            status='optimal_cycle_found',
+            optimal_cycle_months=optimal_row.cycle_months,
+            minimal_average_cost_per_vehicle_per_month=optimal_row.average_cost_per_vehicle_per_month,
+            minimal_average_cost_for_fleet_per_month=optimal_row.average_cost_for_fleet_per_month,
+            cycle_rows=cycle_rows,
+            optimal_month_rows=optimal_month_rows,
+            message='Оптимальная длина цикла профилактического ремонта найдена методом перебора альтернатив дерева решений.',
+        )
+
+    def _evaluate_cycle(self, cycle_months: int) -> tuple[PreventiveMaintenanceCycleRow, List[PreventiveMaintenanceMonthRow]]:
+        survival_probability = Fraction(1)
+        expected_failure_cost = Fraction(0)
+        expected_duration = Fraction(0)
+        month_rows: List[PreventiveMaintenanceMonthRow] = []
+
+        for month in range(1, cycle_months + 1):
+            conditional_failure_probability = self._failure_probability(month)
+            survival_before_month = survival_probability
+            unconditional_failure_probability = survival_before_month * conditional_failure_probability
+            survival_after_month = survival_before_month * (Fraction(1) - conditional_failure_probability)
+            expected_failure_cost_for_month = unconditional_failure_probability * self.problem.random_failure_cost
+            expected_duration_contribution = month * unconditional_failure_probability
+
+            month_rows.append(
+                PreventiveMaintenanceMonthRow(
+                    month=month,
+                    conditional_failure_probability=conditional_failure_probability,
+                    survival_probability_before_month=survival_before_month,
+                    unconditional_failure_probability=unconditional_failure_probability,
+                    survival_probability_after_month=survival_after_month,
+                    expected_failure_cost_per_vehicle=expected_failure_cost_for_month,
+                    expected_duration_contribution=expected_duration_contribution,
+                )
+            )
+
+            expected_failure_cost += expected_failure_cost_for_month
+            expected_duration += expected_duration_contribution
+            survival_probability = survival_after_month
+
+        expected_preventive_cost = survival_probability * self.problem.preventive_repair_cost
+        expected_preventive_duration = cycle_months * survival_probability
+        expected_cycle_cost_per_vehicle = expected_failure_cost + expected_preventive_cost
+        expected_cycle_length_months = expected_duration + expected_preventive_duration
+
+        if expected_cycle_length_months == 0:
+            raise ValueError('Ожидаемая длительность цикла равна нулю, расчет невозможен.')
+
+        average_cost_per_vehicle_per_month = expected_cycle_cost_per_vehicle / expected_cycle_length_months
+        expected_cycle_cost_for_fleet = expected_cycle_cost_per_vehicle * self.problem.fleet_size
+        average_cost_for_fleet_per_month = average_cost_per_vehicle_per_month * self.problem.fleet_size
+
+        cycle_row = PreventiveMaintenanceCycleRow(
+            cycle_months=cycle_months,
+            expected_cycle_cost_per_vehicle=expected_cycle_cost_per_vehicle,
+            expected_cycle_length_months=expected_cycle_length_months,
+            average_cost_per_vehicle_per_month=average_cost_per_vehicle_per_month,
+            expected_cycle_cost_for_fleet=expected_cycle_cost_for_fleet,
+            average_cost_for_fleet_per_month=average_cost_for_fleet_per_month,
+            survival_probability_to_preventive_repair=survival_probability,
+            failure_probability_before_preventive_repair=Fraction(1) - survival_probability,
+        )
+        return cycle_row, month_rows
+
+    def _failure_probability(self, month: int) -> Fraction:
+        if month in self.problem.failure_probability_by_month:
+            return self.problem.failure_probability_by_month[month]
+
+        explicit_months = sorted(self.problem.failure_probability_by_month.keys())
+        smaller_or_equal = [candidate for candidate in explicit_months if candidate <= month]
+        if smaller_or_equal:
+            nearest_month = max(smaller_or_equal)
+            if month > nearest_month:
+                return self.problem.later_failure_probability
+
+        return self.problem.later_failure_probability
+
+    @staticmethod
+    def _format_decimal(value: Fraction, digits: int = 6) -> str:
+        return f'{float(value):.{digits}f}'
+
+    def _validate(self) -> None:
+        if self.problem.fleet_size <= 0:
+            raise ValueError('Количество автомобилей должно быть положительным.')
+        if self.problem.max_cycle_months <= 0:
+            raise ValueError('Максимальная длина цикла должна быть положительной.')
+        if self.problem.random_failure_cost < 0:
+            raise ValueError('Стоимость случайной поломки не может быть отрицательной.')
+        if self.problem.preventive_repair_cost < 0:
+            raise ValueError('Стоимость профилактического ремонта не может быть отрицательной.')
+        for probability in list(self.problem.failure_probability_by_month.values()) + [self.problem.later_failure_probability]:
+            if probability < 0 or probability > 1:
+                raise ValueError('Вероятности поломок должны быть в диапазоне от 0 до 1.')
