@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from graph_models import Edge, NetworkProblem, Number
 
 
 class ProblemReader:
+    SUPPORTED_PROBLEM_TYPES: Set[str] = {
+        'mst',
+        'shortest_path',
+        'max_flow',
+        'min_cost_flow',
+        'prewinning_tictactoe_configuration',
+    }
+
     @staticmethod
     def read(file_path: str) -> NetworkProblem:
         path = Path(file_path)
@@ -21,11 +29,14 @@ class ProblemReader:
     @staticmethod
     def _from_json(data: Dict[str, Any]) -> NetworkProblem:
         problem_type = str(data.get('problem_type', data.get('type', ''))).strip().lower()
-        if problem_type not in {'mst', 'shortest_path', 'max_flow', 'min_cost_flow'}:
+        if problem_type not in ProblemReader.SUPPORTED_PROBLEM_TYPES:
             raise ValueError(
                 'Поле problem_type должно иметь одно из значений: '
-                'mst, shortest_path, max_flow, min_cost_flow.'
+                'mst, shortest_path, max_flow, min_cost_flow, prewinning_tictactoe_configuration.'
             )
+
+        if problem_type == 'prewinning_tictactoe_configuration':
+            return ProblemReader._read_tictactoe_problem(data, problem_type)
 
         directed = bool(data.get('directed', problem_type != 'mst'))
         raw_nodes = data.get('nodes')
@@ -79,7 +90,100 @@ class ProblemReader:
             source=source,
             target=target,
             desired_flow=desired_flow,
+            metadata=ProblemReader._read_metadata(data),
         )
+
+    @staticmethod
+    def _read_tictactoe_problem(data: Dict[str, Any], problem_type: str) -> NetworkProblem:
+        symbols = data.get('symbols')
+        if not isinstance(symbols, dict):
+            symbols = {}
+
+        first_player_symbol = str(symbols.get('first_player', data.get('first_player_symbol', 'X')))
+        second_player_symbol = str(symbols.get('second_player', data.get('second_player_symbol', 'O')))
+        empty_cell_symbol = str(symbols.get('empty_cell', data.get('empty_cell_symbol', '.')))
+
+        if len(first_player_symbol) != 1 or len(second_player_symbol) != 1 or len(empty_cell_symbol) != 1:
+            raise ValueError('Символы игроков и пустой клетки должны состоять ровно из одного символа.')
+        if len({first_player_symbol, second_player_symbol, empty_cell_symbol}) != 3:
+            raise ValueError('Символы игроков и пустой клетки должны быть различными.')
+
+        win_length = int(data.get('win_length', 5))
+        if win_length <= 0:
+            raise ValueError('win_length должен быть положительным целым числом.')
+
+        board = ProblemReader._read_board(
+            raw_board=data.get('board'),
+            allowed_symbols={first_player_symbol, second_player_symbol, empty_cell_symbol},
+        )
+
+        nodes: List[str] = []
+        if board is not None:
+            nodes = [f'({row_index + 1},{column_index + 1})' for row_index in range(len(board)) for column_index in range(len(board[row_index]))]
+
+        return NetworkProblem(
+            problem_type=problem_type,
+            nodes=nodes,
+            edges=[],
+            directed=False,
+            board=board,
+            win_length=win_length,
+            first_player_symbol=first_player_symbol,
+            second_player_symbol=second_player_symbol,
+            empty_cell_symbol=empty_cell_symbol,
+            metadata=ProblemReader._read_metadata(data),
+        )
+
+    @staticmethod
+    def _read_board(raw_board: Any, allowed_symbols: Set[str]) -> Optional[List[List[str]]]:
+        if raw_board is None:
+            return None
+
+        if isinstance(raw_board, str):
+            prepared = raw_board.strip()
+            if prepared == '':
+                return None
+            if '\n' not in prepared:
+                return None
+            rows = [line.strip() for line in prepared.splitlines() if line.strip() != '']
+            board = [list(row) for row in rows]
+        elif isinstance(raw_board, list):
+            if len(raw_board) == 0:
+                return None
+            board = []
+            for row in raw_board:
+                if isinstance(row, str):
+                    board.append(list(row.strip()))
+                elif isinstance(row, list):
+                    board.append([str(cell) for cell in row])
+                else:
+                    raise ValueError('Каждая строка board должна быть строкой или списком символов.')
+        else:
+            raise ValueError('Поле board должно быть строкой, списком строк или списком списков символов.')
+
+        if len(board) == 0:
+            return None
+
+        column_count = len(board[0])
+        if column_count == 0:
+            raise ValueError('Поле board не должно содержать пустые строки.')
+
+        for row_index, row in enumerate(board, start=1):
+            if len(row) != column_count:
+                raise ValueError('Все строки board должны иметь одинаковую длину.')
+            for column_index, cell in enumerate(row, start=1):
+                if cell not in allowed_symbols:
+                    raise ValueError(
+                        f'Недопустимый символ board[{row_index}][{column_index}] = {cell!r}. '
+                        f'Разрешены только: {", ".join(sorted(allowed_symbols))}.'
+                    )
+
+        return board
+
+    @staticmethod
+    def _read_metadata(data: Dict[str, Any]) -> Dict[str, object]:
+        metadata_keys = ['source', 'variant_number', 'condition_summary', 'field_size']
+        return {key: data[key] for key in metadata_keys if key in data}
 
     @staticmethod
     def _read_edge(raw_edge: Dict[str, Any], default_directed: bool) -> Edge:

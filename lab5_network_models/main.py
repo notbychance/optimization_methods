@@ -11,7 +11,7 @@ from snapshot import SnapshotWriter
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Решение задач сетевых моделей: минимальное остовное дерево, кратчайший путь, максимальный поток, поток наименьшей стоимости.'
+        description='Решение задач сетевых моделей и дополнительного 17-го варианта: предвыигрышная конфигурация крестиков-ноликов.'
     )
     parser.add_argument(
         '--input',
@@ -58,6 +58,22 @@ def print_result(result: NetworkResult) -> None:
         for (start, end), flow in sorted(result.flows.items()):
             if abs(flow) > 1e-12:
                 print(f'  {start} -> {end}: {format_number(flow)}')
+
+    if result.winning_moves is not None:
+        print('Предвыигрышные ходы:')
+        if len(result.winning_moves) == 0:
+            print('  не найдены')
+        else:
+            for move in result.winning_moves:
+                print(
+                    '  символ {symbol}: строка {row}, столбец {column}, направление: {direction}, длина цепочки: {line_length}'.format(
+                        symbol=move.get('symbol'),
+                        row=move.get('row'),
+                        column=move.get('column'),
+                        direction=move.get('direction'),
+                        line_length=move.get('line_length'),
+                    )
+                )
 
 
 def format_number(value: Number) -> str:

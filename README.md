@@ -1,6 +1,8 @@
 # Лабораторные работы по методам оптимизации
 
-Репозиторий содержит набор консольных Python-программ для выполнения лабораторных работ по дисциплине **«Методы оптимизации»**. Каждая лабораторная работа реализована отдельным модулем, а в корне проекта расположен общий файл запуска `main.py`, который позволяет выбрать номер работы, входной JSON-файл и файл экспорта результата.
+Репозиторий содержит общий комплекс консольных Python-программ для выполнения лабораторных работ по дисциплине **«Методы оптимизации»**. Каждая лабораторная работа реализована отдельным модулем, а в корне проекта расположен общий файл запуска `main.py`, который позволяет выбрать номер работы, входной JSON-файл и файл экспорта результата.
+
+Комплекс подготовлен под **17-й вариант**. Примеры в каталогах `examples` заменены на условия 17-го варианта. Если в методических указаниях условие задано не как готовая числовая таблица, а как общее описание, пример оставлен в таком виде. Программа в этом случае не подгоняет условие искусственно, а сообщает, какие конкретные данные нужно добавить для полного расчёта.
 
 Все алгоритмы реализованы вручную, без готовых библиотек оптимизации. Для вычислений используются стандартные возможности Python, в том числе рациональные числа через `fractions.Fraction`, где это требуется для уменьшения ошибок округления.
 
@@ -9,6 +11,8 @@
 ```text
 .
 ├── main.py
+├── run_all_labs_commands.md
+├── VARIANT_17_NOTES.md
 ├── lab2_simplex/
 ├── lab3_dual_simplex/
 ├── lab4_transportation/
@@ -26,13 +30,31 @@
 | 2 | `lab2_simplex` | Симплекс-метод |
 | 3 | `lab3_dual_simplex` | Двойственный симплекс-метод |
 | 4 | `lab4_transportation` | Транспортная задача |
-| 5 | `lab5_network_models` | Сетевые модели |
+| 5 | `lab5_network_models` | Сетевые модели; дополнительно поддержан 17-й вариант про предвыигрышную конфигурацию крестиков-ноликов |
 | 6 | `lab6_dynamic_programming` | Динамическое программирование |
 | 7 | `lab7_parametric_linear_programming` | Параметрическое линейное программирование |
 | 8 | `lab8_game_theory` | Теория игр и принятие решений |
 | 9 | `lab9_integer_linear_programming` | Целочисленное линейное программирование |
 
-В каждом каталоге лабораторной работы есть собственный `README.md`, файл запуска `main.py`, модули алгоритма, модуль чтения входных данных, модуль экспорта снимков решения и каталог `examples` с тестовыми JSON-файлами.
+В каждом каталоге лабораторной работы есть собственный `README.md`, файл запуска `main.py`, модули алгоритма, модуль чтения входных данных, модуль экспорта снимков решения и каталог `examples` с JSON-файлами.
+
+
+## Состояние примеров 17-го варианта
+
+После переноса на 17-й вариант часть JSON-файлов является полноценными входными данными, а часть — заготовками условия, потому что в методических указаниях для них не приведены конкретные числовые данные или они относятся к другому типу задачи, чем первоначально реализованный модуль.
+
+| ЛР | Состояние примеров | Комментарий |
+|---:|---|---|
+| 2 | запускается | результат может быть `infeasible`, если перенесённое условие несовместно; условие не подгонялось под ответ |
+| 3 | запускается | возможен статус `not_dual_feasible`, если начальная таблица не подходит для двойственного симплекс-метода |
+| 4 | запускается | транспортная модель обрабатывается методом потенциалов |
+| 5 | запускается | добавлен режим `prewinning_tictactoe_configuration`; заготовки без `board` дают штатный статус `input_required`, конкретный пример запускается полностью |
+| 6 | заготовка условия | 17-й вариант имеет тип `multiplicative_constraint_dynamic_programming`; текущий модуль пока поддерживает `knapsack` и `finite_horizon` |
+| 7 | запускается | параметрическая модель обрабатывается собственным алгоритмом перебора базисов |
+| 8 | заготовка условия | 17-й вариант относится к дереву решений профилактического ремонта; текущий модуль пока поддерживает `matrix_game`, `decision`, `bimatrix` |
+| 9 | запускается | целочисленная модель обрабатывается методом ветвей и границ |
+
+Файл `run_all_labs_commands.md` разделяет команды на две группы: команды, которые запускаются текущими модулями без аварийной ошибки, и заготовки ЛР 6/8, для которых нужно расширять соответствующие модули.
 
 ## Требования
 
@@ -85,7 +107,7 @@ python main.py
 1. принимает номер лабораторной работы;
 2. определяет соответствующий каталог модуля;
 3. находит входной JSON-файл;
-4. запускает `main.py` выбранной лабораторной работы;
+4. запускает `main.py` выбранной лабораторной работы отдельным процессом;
 5. сохраняет подробный протокол решения в Markdown-файл.
 
 ## Поиск входного файла
@@ -102,10 +124,24 @@ python main.py
 Например:
 
 ```bash
-python main.py -n 5 -i lab5_shortest_path_example.json -o results/lab5_shortest_path.md
+python main.py -n 5 -i lab5_tictactoe_concrete_example.json -o results/lab5_tictactoe_concrete.md
 ```
 
 ## Примеры запуска
+
+Перед запуском можно создать каталог результатов.
+
+Linux/macOS/Git Bash:
+
+```bash
+mkdir -p results
+```
+
+Windows PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force results
+```
 
 ### ЛР 2. Симплекс-метод
 
@@ -117,37 +153,51 @@ python main.py -n 2 -i lab2_example.json -o results/lab2_simplex.md
 
 ```bash
 python main.py -n 3 -i lab3_dual_example.json -o results/lab3_dual_simplex.md
+python main.py -n 3 -i lab3_tableau_example.json -o results/lab3_tableau.md
 ```
 
 ### ЛР 4. Транспортная задача
 
 ```bash
 python main.py -n 4 -i lab4_transport_example.json -o results/lab4_transportation.md
+python main.py -n 4 -i lab4_unbalanced_example.json -o results/lab4_unbalanced.md
 ```
 
-### ЛР 5. Сетевые модели
+### ЛР 5. Сетевые модели и 17-й вариант
 
-```bash
-python main.py -n 5 -i lab5_shortest_path_example.json -o results/lab5_shortest_path.md
+Типовые сетевые режимы модуля:
+
+```text
+mst
+shortest_path
+max_flow
+min_cost_flow
 ```
 
-Другие примеры для ЛР 5:
+Для 17-го варианта добавлен отдельный режим:
+
+```text
+prewinning_tictactoe_configuration
+```
+
+Старые имена файлов примеров ЛР 5 сохранены для совместимости с общим списком команд, но их содержимое заменено на условие 17-го варианта. В этих файлах конкретная матрица поля `board` не задана, потому что в методических указаниях приведено только общее условие `m × n`. Такие запуски завершаются штатно со статусом `input_required` и создают Markdown-файл с пояснением.
+
+Запуск файла-заготовки 17-го варианта:
 
 ```bash
-python main.py -n 5 -i lab5_max_flow_example.json -o results/lab5_max_flow.md
-python main.py -n 5 -i lab5_min_cost_flow_example.json -o results/lab5_min_cost_flow.md
-python main.py -n 5 -i lab5_mst_example.json -o results/lab5_mst.md
+python main.py -n 5 -i lab5_shortest_path_example.json -o results/lab5_shortest_path_example.md
+```
+
+Запуск конкретного проверяемого поля:
+
+```bash
+python main.py -n 5 -i lab5_tictactoe_concrete_example.json -o results/lab5_tictactoe_concrete_example.md
 ```
 
 ### ЛР 6. Динамическое программирование
 
 ```bash
 python main.py -n 6 -i lab6_knapsack_example.json -o results/lab6_knapsack.md
-```
-
-Другой пример:
-
-```bash
 python main.py -n 6 -i lab6_finite_horizon_example.json -o results/lab6_finite_horizon.md
 ```
 
@@ -155,11 +205,6 @@ python main.py -n 6 -i lab6_finite_horizon_example.json -o results/lab6_finite_h
 
 ```bash
 python main.py -n 7 -i lab7_objective_parameter_example.json -o results/lab7_objective_parameter.md
-```
-
-Другой пример:
-
-```bash
 python main.py -n 7 -i lab7_rhs_parameter_example.json -o results/lab7_rhs_parameter.md
 ```
 
@@ -167,11 +212,6 @@ python main.py -n 7 -i lab7_rhs_parameter_example.json -o results/lab7_rhs_param
 
 ```bash
 python main.py -n 8 -i lab8_matrix_game_example.json -o results/lab8_matrix_game.md
-```
-
-Другие примеры:
-
-```bash
 python main.py -n 8 -i lab8_decision_example.json -o results/lab8_decision.md
 python main.py -n 8 -i lab8_bimatrix_example.json -o results/lab8_bimatrix.md
 ```
@@ -180,13 +220,10 @@ python main.py -n 8 -i lab8_bimatrix_example.json -o results/lab8_bimatrix.md
 
 ```bash
 python main.py -n 9 -i lab9_integer_example.json -o results/lab9_integer.md
-```
-
-Другой пример:
-
-```bash
 python main.py -n 9 -i lab9_binary_example.json -o results/lab9_binary.md
 ```
+
+Полный список команд приведён в файле `run_all_labs_commands.md`. В нём отдельно указаны команды, которые запускаются текущими модулями, и заготовки ЛР 6/8, требующие расширения алгоритмов.
 
 ## Запуск отдельной лабораторной работы напрямую
 
@@ -197,6 +234,13 @@ python main.py -n 9 -i lab9_binary_example.json -o results/lab9_binary.md
 ```bash
 cd lab2_simplex
 python main.py --input examples/lab2_example.json --snapshot simplex_snapshot.md
+```
+
+Пример для ЛР 5 с конкретным полем 17-го варианта:
+
+```bash
+cd lab5_network_models
+python main.py --input examples/lab5_tictactoe_concrete_example.json --snapshot tictactoe_snapshot.md
 ```
 
 Пример для ЛР 9:
@@ -216,7 +260,7 @@ python main.py --input examples/lab9_integer_example.json --snapshot integer_lp_
 
 - ЛР 2, 3, 7, 9 используют модели линейного программирования с целевой функцией, переменными и ограничениями;
 - ЛР 4 использует данные транспортной задачи: запасы, потребности и матрицу стоимостей;
-- ЛР 5 использует описание графа и тип сетевой задачи;
+- ЛР 5 использует описание графа для типовых сетевых задач или поле `board` для 17-го варианта про предвыигрышную конфигурацию;
 - ЛР 6 использует данные для задачи о рюкзаке или универсальной многоэтапной задачи;
 - ЛР 8 использует платежные матрицы, матрицы решений или биматричные игры.
 
@@ -230,6 +274,19 @@ python main.py --input examples/lab9_integer_example.json --snapshot integer_lp_
 2. подробный протокол решения сохраняется в Markdown-файл, указанный через `--snapshot`, `--output`, `--export` или `--export-file`.
 
 Markdown-файл можно использовать как основу для отчета по лабораторной работе: он содержит промежуточные таблицы, вычислительные шаги, итоговый статус и найденное решение.
+
+## Статусы результата
+
+Статусы зависят от выбранной лабораторной работы. Общие варианты:
+
+| Статус | Значение |
+|---|---|
+| `optimal` | оптимальное решение найдено |
+| `infeasible` | задача несовместна или требуемое решение невозможно |
+| `unbounded` | целевая функция не ограничена |
+| `input_required` | для полного расчёта во входном файле не хватает конкретных данных |
+
+Для ЛР 5 также возможны статусы `prewinning` и `not_prewinning` при проверке конфигурации крестиков-ноликов. Для ЛР 6 и ЛР 8 текущие файлы 17-го варианта являются заготовками: до расширения модулей их запуск может завершаться сообщением о неподдерживаемом типе задачи.
 
 ## Рекомендуемый порядок работы
 
@@ -255,6 +312,35 @@ python main.py -n 4 -i lab4_transport_example.json -o results/lab4.md
 ### Неверный номер лабораторной работы
 
 Допустимые номера: `2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`.
+
+### Неподдерживаемый `problem_type`
+
+Проверьте поле `problem_type` во входном JSON-файле. Для ЛР 5 допустимы:
+
+```text
+mst
+shortest_path
+max_flow
+min_cost_flow
+prewinning_tictactoe_configuration
+```
+
+### Статус `input_required` в ЛР 5
+
+Это не аварийная ошибка. Для 17-го варианта в методических указаниях задан общий вид поля `m × n`, но не приведена конкретная заполненная матрица. Чтобы получить фактическую проверку, в JSON нужно задать поле `board` как список строк.
+
+Пример:
+
+```json
+"board": [
+  ".......",
+  "..XXXX.",
+  "...O...",
+  "...O...",
+  "...O...",
+  "......."
+]
+```
 
 ### Файл экспорта не создается
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Union
 
 Number = Union[int, float]
@@ -25,6 +25,12 @@ class NetworkProblem:
     source: Optional[str] = None
     target: Optional[str] = None
     desired_flow: Optional[Number] = None
+    board: Optional[List[List[str]]] = None
+    win_length: int = 5
+    first_player_symbol: str = 'X'
+    second_player_symbol: str = 'O'
+    empty_cell_symbol: str = '.'
+    metadata: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -37,3 +43,4 @@ class NetworkResult:
     selected_edges: Optional[List[Edge]] = None
     flows: Optional[Dict[Tuple[str, str], Number]] = None
     distances: Optional[Dict[str, Number]] = None
+    winning_moves: Optional[List[Dict[str, object]]] = None

@@ -66,7 +66,140 @@ class NetworkSolver:
             return self.max_flow()
         if self.problem.problem_type == 'min_cost_flow':
             return self.min_cost_flow()
+        if self.problem.problem_type == 'prewinning_tictactoe_configuration':
+            return self.prewinning_tictactoe_configuration()
         raise ValueError(f'Неподдерживаемый тип задачи: {self.problem.problem_type}')
+
+    def prewinning_tictactoe_configuration(self) -> NetworkResult:
+        board = self.problem.board
+        if board is None:
+            self._write_table(
+                title='Проверка предвыигрышной конфигурации невозможна',
+                headers=['Показатель', 'Значение'],
+                rows=[
+                    ['Причина', 'Во входном файле не задана конкретная матрица поля board.'],
+                    ['Ожидаемый формат', 'список строк, например [".....", "..XX.", "....."]'],
+                    ['Длина победной цепочки', self.problem.win_length],
+                    ['Символ первого игрока', self.problem.first_player_symbol],
+                    ['Символ второго игрока', self.problem.second_player_symbol],
+                    ['Символ пустой клетки', self.problem.empty_cell_symbol],
+                ],
+                note='Условие 17-го варианта в методичке описывает общий вид задачи m × n, но не содержит конкретной заполненной матрицы. Поэтому программа корректно завершает запуск и сообщает, какие данные нужно добавить.',
+            )
+            return NetworkResult(
+                status='input_required',
+                message='Для 17-го варианта нужно задать конкретное поле board. В методичке указано только общее условие m × n.',
+                problem_type='prewinning_tictactoe_configuration',
+                total_value=None,
+                winning_moves=[],
+            )
+
+        self._snapshot_board(
+            title='Исходная конфигурация поля',
+            board=board,
+            note=(
+                f'Проверяется, можно ли за один ход получить цепочку длиной {self.problem.win_length}. '
+                f'Игроки: {self.problem.first_player_symbol}, {self.problem.second_player_symbol}. '
+                f'Пустая клетка: {self.problem.empty_cell_symbol}.'
+            ),
+        )
+
+        winning_moves: List[Dict[str, object]] = []
+        checked_rows: List[List[object]] = []
+        players = [self.problem.first_player_symbol, self.problem.second_player_symbol]
+
+        for row_index in range(len(board)):
+            for column_index in range(len(board[row_index])):
+                if board[row_index][column_index] != self.problem.empty_cell_symbol:
+                    continue
+
+                for player_symbol in players:
+                    best_direction, best_count, best_cells = self._best_tictactoe_line_after_move(
+                        board=board,
+                        row_index=row_index,
+                        column_index=column_index,
+                        player_symbol=player_symbol,
+                    )
+                    is_winning = best_count >= self.problem.win_length
+                    checked_rows.append([
+                        row_index + 1,
+                        column_index + 1,
+                        player_symbol,
+                        best_direction,
+                        best_count,
+                        'да' if is_winning else 'нет',
+                    ])
+
+                    if is_winning:
+                        move = {
+                            'row': row_index + 1,
+                            'column': column_index + 1,
+                            'symbol': player_symbol,
+                            'direction': best_direction,
+                            'line_length': best_count,
+                            'cells': [(cell_row + 1, cell_column + 1) for cell_row, cell_column in best_cells],
+                        }
+                        winning_moves.append(move)
+                        candidate_board = self._copy_board(board)
+                        candidate_board[row_index][column_index] = player_symbol
+                        self._snapshot_board(
+                            title=f'Найден предвыигрышный ход: {player_symbol} в клетку ({row_index + 1}; {column_index + 1})',
+                            board=candidate_board,
+                            note=(
+                                f'Направление: {best_direction}. '
+                                f'Длина полученной цепочки: {best_count}. '
+                                f'Клетки цепочки: {self._format_cells(move["cells"])}.'
+                            ),
+                        )
+
+        if not checked_rows:
+            checked_rows.append(['—', '—', '—', '—', '—', 'На поле нет пустых клеток'])
+
+        self._write_table(
+            title='Проверенные возможные ходы',
+            headers=['Строка', 'Столбец', 'Символ', 'Лучшее направление', 'Максимальная цепочка', 'Победный ход'],
+            rows=checked_rows,
+        )
+
+        if winning_moves:
+            result_rows = [
+                [
+                    move['symbol'],
+                    move['row'],
+                    move['column'],
+                    move['direction'],
+                    move['line_length'],
+                    self._format_cells(move['cells']),
+                ]
+                for move in winning_moves
+            ]
+            self._write_table(
+                title='Итог: конфигурация является предвыигрышной',
+                headers=['Символ', 'Строка', 'Столбец', 'Направление', 'Длина цепочки', 'Клетки цепочки'],
+                rows=result_rows,
+                note='Достаточно одного найденного хода, но программа выводит все обнаруженные предвыигрышные ходы.',
+            )
+            return NetworkResult(
+                status='prewinning',
+                message='Конфигурация является предвыигрышной: существует ход, дающий цепочку из пяти одинаковых знаков.',
+                problem_type='prewinning_tictactoe_configuration',
+                total_value=len(winning_moves),
+                winning_moves=winning_moves,
+            )
+
+        self._write_table(
+            title='Итог: конфигурация не является предвыигрышной',
+            headers=['Показатель', 'Значение'],
+            rows=[['Количество найденных предвыигрышных ходов', 0]],
+            note='Ни один допустимый ход не создает цепочку требуемой длины.',
+        )
+        return NetworkResult(
+            status='not_prewinning',
+            message='Конфигурация не является предвыигрышной: за один ход нельзя получить цепочку из пяти одинаковых знаков.',
+            problem_type='prewinning_tictactoe_configuration',
+            total_value=0,
+            winning_moves=[],
+        )
 
     def minimum_spanning_tree(self) -> NetworkResult:
         self._snapshot_graph(
@@ -403,6 +536,88 @@ class NetworkSolver:
             total_value=total_cost,
             flows=flows,
         )
+
+    def _best_tictactoe_line_after_move(
+        self,
+        board: List[List[str]],
+        row_index: int,
+        column_index: int,
+        player_symbol: str,
+    ) -> Tuple[str, int, List[Tuple[int, int]]]:
+        directions = [
+            ('горизонталь', 0, 1),
+            ('вертикаль', 1, 0),
+            ('главная диагональ', 1, 1),
+            ('побочная диагональ', 1, -1),
+        ]
+        best_direction = '—'
+        best_count = 0
+        best_cells: List[Tuple[int, int]] = []
+
+        for direction_name, row_delta, column_delta in directions:
+            cells = [(row_index, column_index)]
+            cells.extend(
+                self._collect_same_symbol_cells(
+                    board=board,
+                    row_index=row_index,
+                    column_index=column_index,
+                    row_delta=row_delta,
+                    column_delta=column_delta,
+                    player_symbol=player_symbol,
+                )
+            )
+            cells.extend(
+                self._collect_same_symbol_cells(
+                    board=board,
+                    row_index=row_index,
+                    column_index=column_index,
+                    row_delta=-row_delta,
+                    column_delta=-column_delta,
+                    player_symbol=player_symbol,
+                )
+            )
+            cells.sort()
+            if len(cells) > best_count:
+                best_direction = direction_name
+                best_count = len(cells)
+                best_cells = cells
+
+        return best_direction, best_count, best_cells
+
+    def _collect_same_symbol_cells(
+        self,
+        board: List[List[str]],
+        row_index: int,
+        column_index: int,
+        row_delta: int,
+        column_delta: int,
+        player_symbol: str,
+    ) -> List[Tuple[int, int]]:
+        cells: List[Tuple[int, int]] = []
+        current_row = row_index + row_delta
+        current_column = column_index + column_delta
+        while 0 <= current_row < len(board) and 0 <= current_column < len(board[current_row]):
+            if board[current_row][current_column] != player_symbol:
+                break
+            cells.append((current_row, current_column))
+            current_row += row_delta
+            current_column += column_delta
+        return cells
+
+    def _copy_board(self, board: List[List[str]]) -> List[List[str]]:
+        return [row[:] for row in board]
+
+    def _snapshot_board(self, title: str, board: List[List[str]], note: str = '') -> None:
+        rows = []
+        for row_index, row in enumerate(board, start=1):
+            rows.append([row_index] + row)
+        headers = ['№'] + [str(column_index) for column_index in range(1, len(board[0]) + 1)]
+        self._write_table(title=title, headers=headers, rows=rows, note=note)
+
+    def _format_cells(self, cells: object) -> str:
+        if not isinstance(cells, list):
+            return str(cells)
+        return ', '.join(f'({row}; {column})' for row, column in cells)
 
     def _build_weight_adjacency(self) -> Dict[str, List[Tuple[str, Number]]]:
         adjacency: Dict[str, List[Tuple[str, Number]]] = {node: [] for node in self.problem.nodes}

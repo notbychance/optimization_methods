@@ -1,0 +1,17 @@
+{
+  "problem_type": "prewinning_tictactoe_configuration",
+  "win_length": 5,
+  "symbols": {
+    "first_player": "X",
+    "second_player": "O",
+    "empty_cell": "."
+  },
+  "board": [
+    ".......",
+    "..XXXX.",
+    "...O...",
+    "...O...",
+    "...O...",
+    "......."
+  ]
+}
