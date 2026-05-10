@@ -14,6 +14,8 @@ class ProblemReader:
         'max_flow',
         'min_cost_flow',
         'prewinning_tictactoe_configuration',
+        'project_scheduling',
+        'critical_path',
     }
 
     @staticmethod
@@ -29,14 +31,21 @@ class ProblemReader:
     @staticmethod
     def _from_json(data: Dict[str, Any]) -> NetworkProblem:
         problem_type = str(data.get('problem_type', data.get('type', ''))).strip().lower()
+        if problem_type == 'critical_path':
+            problem_type = 'project_scheduling'
+
         if problem_type not in ProblemReader.SUPPORTED_PROBLEM_TYPES:
             raise ValueError(
                 'Поле problem_type должно иметь одно из значений: '
-                'mst, shortest_path, max_flow, min_cost_flow, prewinning_tictactoe_configuration.'
+                'mst, shortest_path, max_flow, min_cost_flow, '
+                'prewinning_tictactoe_configuration, project_scheduling, critical_path.'
             )
 
         if problem_type == 'prewinning_tictactoe_configuration':
             return ProblemReader._read_tictactoe_problem(data, problem_type)
+
+        if problem_type == 'project_scheduling':
+            return ProblemReader._read_project_scheduling_problem(data, problem_type)
 
         directed = bool(data.get('directed', problem_type != 'mst'))
         raw_nodes = data.get('nodes')
@@ -46,22 +55,9 @@ class ProblemReader:
             raise ValueError('Поле edges должно быть непустым списком ребер/дуг.')
 
         edges = [ProblemReader._read_edge(raw_edge, directed) for raw_edge in raw_edges]
-
-        if raw_nodes is None:
-            node_set = set()
-            for edge in edges:
-                node_set.add(edge.start)
-                node_set.add(edge.end)
-            nodes = sorted(node_set)
-        else:
-            if not isinstance(raw_nodes, list) or len(raw_nodes) == 0:
-                raise ValueError('Поле nodes должно быть непустым списком вершин.')
-            nodes = [str(node) for node in raw_nodes]
-
+        nodes = ProblemReader._read_nodes(raw_nodes=raw_nodes, edges=edges)
         node_set = set(nodes)
-        for edge in edges:
-            if edge.start not in node_set or edge.end not in node_set:
-                raise ValueError(f'Ребро {edge.start} -> {edge.end} содержит вершину, отсутствующую в nodes.')
+        ProblemReader._validate_edge_nodes(edges=edges, node_set=node_set)
 
         source = data.get('source')
         target = data.get('target')
@@ -94,6 +90,49 @@ class ProblemReader:
         )
 
     @staticmethod
+    def _read_project_scheduling_problem(data: Dict[str, Any], problem_type: str) -> NetworkProblem:
+        raw_edges = data.get('edges')
+        if not isinstance(raw_edges, list) or len(raw_edges) == 0:
+            raise ValueError('Для project_scheduling поле edges должно быть непустым списком работ.')
+
+        edges = [ProblemReader._read_project_work(raw_edge) for raw_edge in raw_edges]
+        nodes = ProblemReader._read_nodes(raw_nodes=data.get('nodes'), edges=edges)
+        node_set = set(nodes)
+        ProblemReader._validate_edge_nodes(edges=edges, node_set=node_set)
+
+        source = data.get('start_event', data.get('source_event'))
+        target = data.get('finish_event', data.get('target_event'))
+
+        if source is None and data.get('source') is not None and str(data.get('source')) in node_set:
+            source = data.get('source')
+        if target is None and data.get('target') is not None and str(data.get('target')) in node_set:
+            target = data.get('target')
+
+        if source is not None:
+            source = str(source)
+            if source not in node_set:
+                raise ValueError('start_event должен входить в список nodes.')
+        if target is not None:
+            target = str(target)
+            if target not in node_set:
+                raise ValueError('finish_event должен входить в список nodes.')
+
+        metadata = ProblemReader._read_metadata(data)
+        for key in ['schedule_mode', 'mode', 'cost_unit', 'duration_unit']:
+            if key in data:
+                metadata[key] = data[key]
+
+        return NetworkProblem(
+            problem_type=problem_type,
+            nodes=nodes,
+            edges=edges,
+            directed=True,
+            source=source,
+            target=target,
+            metadata=metadata,
+        )
+
+    @staticmethod
     def _read_tictactoe_problem(data: Dict[str, Any], problem_type: str) -> NetworkProblem:
         symbols = data.get('symbols')
         if not isinstance(symbols, dict):
@@ -119,7 +158,11 @@ class ProblemReader:
 
         nodes: List[str] = []
         if board is not None:
-            nodes = [f'({row_index + 1},{column_index + 1})' for row_index in range(len(board)) for column_index in range(len(board[row_index]))]
+            nodes = [
+                f'({row_index + 1},{column_index + 1})'
+                for row_index in range(len(board))
+                for column_index in range(len(board[row_index]))
+            ]
 
         return NetworkProblem(
             problem_type=problem_type,
@@ -133,6 +176,25 @@ class ProblemReader:
             empty_cell_symbol=empty_cell_symbol,
             metadata=ProblemReader._read_metadata(data),
         )
+
+    @staticmethod
+    def _read_nodes(raw_nodes: Any, edges: List[Edge]) -> List[str]:
+        if raw_nodes is None:
+            node_set = set()
+            for edge in edges:
+                node_set.add(edge.start)
+                node_set.add(edge.end)
+            return sorted(node_set, key=ProblemReader._node_sort_key)
+
+        if not isinstance(raw_nodes, list) or len(raw_nodes) == 0:
+            raise ValueError('Поле nodes должно быть непустым списком вершин.')
+        return [str(node) for node in raw_nodes]
+
+    @staticmethod
+    def _validate_edge_nodes(edges: List[Edge], node_set: Set[str]) -> None:
+        for edge in edges:
+            if edge.start not in node_set or edge.end not in node_set:
+                raise ValueError(f'Ребро {edge.start} -> {edge.end} содержит вершину, отсутствующую в nodes.')
 
     @staticmethod
     def _read_board(raw_board: Any, allowed_symbols: Set[str]) -> Optional[List[List[str]]]:
@@ -186,6 +248,37 @@ class ProblemReader:
         return {key: data[key] for key in metadata_keys if key in data}
 
     @staticmethod
+    def _read_project_work(raw_edge: Dict[str, Any]) -> Edge:
+        if not isinstance(raw_edge, dict):
+            raise ValueError('Каждая работа должна быть объектом JSON.')
+
+        start = raw_edge.get('from', raw_edge.get('start'))
+        end = raw_edge.get('to', raw_edge.get('end'))
+        if start is None or end is None:
+            raise ValueError('Для каждой работы нужно задать поля from и to.')
+
+        raw_duration = raw_edge.get('duration', raw_edge.get('weight'))
+        if raw_duration is None:
+            raise ValueError(f'Для работы {start} -> {end} нужно задать duration.')
+        duration = ProblemReader._to_number(raw_duration)
+        if duration < 0:
+            raise ValueError(f'Продолжительность работы {start} -> {end} не может быть отрицательной.')
+
+        raw_cost = raw_edge.get('cost', raw_edge.get('work_cost', 0))
+        cost = ProblemReader._to_number(raw_cost)
+        if cost < 0:
+            raise ValueError(f'Стоимость работы {start} -> {end} не может быть отрицательной.')
+
+        return Edge(
+            start=str(start),
+            end=str(end),
+            weight=duration,
+            capacity=0,
+            cost=cost,
+            directed=True,
+        )
+
+    @staticmethod
     def _read_edge(raw_edge: Dict[str, Any], default_directed: bool) -> Edge:
         if not isinstance(raw_edge, dict):
             raise ValueError('Каждое ребро должно быть объектом JSON.')
@@ -224,3 +317,10 @@ class ProblemReader:
             number = float(prepared_value) if '.' in prepared_value else int(prepared_value)
             return number
         raise ValueError(f'Невозможно преобразовать значение в число: {value}')
+
+    @staticmethod
+    def _node_sort_key(node: str) -> tuple[int, object]:
+        text = str(node)
+        if text.isdigit():
+            return 0, int(text)
+        return 1, text

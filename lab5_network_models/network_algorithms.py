@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from heapq import heappop, heappush
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from graph_models import Edge, NetworkProblem, NetworkResult, Number
 from snapshot import SnapshotWriter
@@ -68,7 +68,201 @@ class NetworkSolver:
             return self.min_cost_flow()
         if self.problem.problem_type == 'prewinning_tictactoe_configuration':
             return self.prewinning_tictactoe_configuration()
+        if self.problem.problem_type == 'project_scheduling':
+            return self.project_scheduling()
         raise ValueError(f'Неподдерживаемый тип задачи: {self.problem.problem_type}')
+
+    def project_scheduling(self) -> NetworkResult:
+        adjacency = self._build_project_adjacency()
+        incoming = self._build_project_incoming()
+        topological_order = self._topological_order(adjacency=adjacency)
+
+        start_events = [node for node in self.problem.nodes if len(incoming[node]) == 0]
+        finish_events = [node for node in self.problem.nodes if len(adjacency[node]) == 0]
+        if not start_events:
+            raise ValueError('В сетевом графике нет начального события.')
+        if not finish_events:
+            raise ValueError('В сетевом графике нет завершающего события.')
+
+        early_times: Dict[str, Number] = {node: 0 for node in self.problem.nodes}
+        predecessor_for_longest_path: Dict[str, Optional[str]] = {node: None for node in self.problem.nodes}
+
+        self._write_table(
+            title='Исходные работы сетевого графика',
+            headers=['Работа', 'Начальное событие', 'Конечное событие', 'Продолжительность', 'Стоимость'],
+            rows=[
+                [
+                    f'({edge.start}; {edge.end})',
+                    edge.start,
+                    edge.end,
+                    edge.weight,
+                    edge.cost,
+                ]
+                for edge in self.problem.edges
+            ],
+            note='В режиме project_scheduling вес ребра трактуется как продолжительность работы, а cost — как стоимость работы.',
+        )
+
+        direct_pass_rows: List[List[object]] = []
+        for node in topological_order:
+            if len(incoming[node]) == 0:
+                early_times[node] = 0
+                direct_pass_rows.append([node, 'начальное событие', 0])
+                continue
+
+            candidates: List[str] = []
+            best_value: Number = -INF
+            best_predecessor: Optional[str] = None
+            for edge in incoming[node]:
+                candidate = early_times[edge.start] + edge.weight
+                candidates.append(f'Tр({edge.start}) + t({edge.start},{edge.end}) = {self._format_number(early_times[edge.start])} + {self._format_number(edge.weight)} = {self._format_number(candidate)}')
+                if candidate > best_value:
+                    best_value = candidate
+                    best_predecessor = edge.start
+            early_times[node] = best_value
+            predecessor_for_longest_path[node] = best_predecessor
+            direct_pass_rows.append([node, '; '.join(candidates), self._format_number(best_value)])
+
+        self._write_table(
+            title='Прямой проход: ранние сроки наступления событий',
+            headers=['Событие', 'Расчет', 'Ранний срок Tр'],
+            rows=direct_pass_rows,
+        )
+
+        if self.problem.target is not None:
+            finish_event = self.problem.target
+            project_duration = early_times[finish_event]
+        else:
+            finish_event = max(finish_events, key=lambda node: (early_times[node], self._node_sort_key(node)))
+            project_duration = early_times[finish_event]
+
+        late_times: Dict[str, Number] = {node: project_duration for node in self.problem.nodes}
+        reverse_pass_rows: List[List[object]] = []
+        for node in reversed(topological_order):
+            if len(adjacency[node]) == 0:
+                if self.problem.target is None or node == finish_event:
+                    late_times[node] = project_duration
+                reverse_pass_rows.append([node, 'завершающее событие', self._format_number(late_times[node])])
+                continue
+
+            candidates = []
+            best_value = INF
+            for edge in adjacency[node]:
+                candidate = late_times[edge.end] - edge.weight
+                candidates.append(f'Tп({edge.end}) - t({edge.start},{edge.end}) = {self._format_number(late_times[edge.end])} - {self._format_number(edge.weight)} = {self._format_number(candidate)}')
+                if candidate < best_value:
+                    best_value = candidate
+            late_times[node] = best_value
+            reverse_pass_rows.append([node, '; '.join(candidates), self._format_number(best_value)])
+
+        reverse_pass_rows.reverse()
+        self._write_table(
+            title='Обратный проход: поздние сроки наступления событий',
+            headers=['Событие', 'Расчет', 'Поздний срок Tп'],
+            rows=reverse_pass_rows,
+        )
+
+        event_rows = []
+        for node in self.problem.nodes:
+            event_reserve = late_times[node] - early_times[node]
+            event_rows.append([
+                node,
+                self._format_number(early_times[node]),
+                self._format_number(late_times[node]),
+                self._format_number(event_reserve),
+            ])
+
+        self._write_table(
+            title='Временные характеристики событий',
+            headers=['Событие', 'Ранний срок Tр', 'Поздний срок Tп', 'Резерв события'],
+            rows=event_rows,
+        )
+
+        reserve_by_work: Dict[Tuple[str, str], Number] = {}
+        critical_edges: List[Edge] = []
+        work_rows: List[List[object]] = []
+        for edge in self.problem.edges:
+            early_start = early_times[edge.start]
+            early_finish = early_start + edge.weight
+            late_finish = late_times[edge.end]
+            late_start = late_finish - edge.weight
+            full_reserve = late_finish - early_start - edge.weight
+            free_reserve = early_times[edge.end] - early_start - edge.weight
+            reserve_by_work[(edge.start, edge.end)] = full_reserve
+            is_critical = abs(full_reserve) <= EPS
+            if is_critical:
+                critical_edges.append(edge)
+            work_rows.append([
+                f'({edge.start}; {edge.end})',
+                edge.weight,
+                edge.cost,
+                self._format_number(early_start),
+                self._format_number(early_finish),
+                self._format_number(late_start),
+                self._format_number(late_finish),
+                self._format_number(full_reserve),
+                self._format_number(free_reserve),
+                'да' if is_critical else 'нет',
+            ])
+
+        self._write_table(
+            title='Временные характеристики работ',
+            headers=[
+                'Работа',
+                'tij',
+                'Стоимость',
+                'Раннее начало',
+                'Раннее окончание',
+                'Позднее начало',
+                'Позднее окончание',
+                'Полный резерв',
+                'Свободный резерв',
+                'Критическая работа',
+            ],
+            rows=work_rows,
+        )
+
+        critical_path = self._find_critical_path(
+            adjacency=adjacency,
+            early_times=early_times,
+            reserve_by_work=reserve_by_work,
+            finish_event=finish_event,
+        )
+        total_cost = sum(edge.cost for edge in self.problem.edges)
+        critical_work_text = ', '.join(f'({edge.start}; {edge.end})' for edge in critical_edges) or 'не найдены'
+        critical_path_text = ' -> '.join(critical_path) if critical_path else 'не найден'
+
+        self._write_table(
+            title='Итог сетевого планирования',
+            headers=['Показатель', 'Значение'],
+            rows=[
+                ['Начальные события', ', '.join(start_events)],
+                ['Завершающие события', ', '.join(finish_events)],
+                ['Расчетное завершающее событие', finish_event],
+                ['Продолжительность комплекса работ', self._format_number(project_duration)],
+                ['Критический путь', critical_path_text],
+                ['Критические работы', critical_work_text],
+                ['Суммарная стоимость всех работ', self._format_number(total_cost)],
+            ],
+        )
+
+        return NetworkResult(
+            status='optimal',
+            message='Временные характеристики сетевого графика рассчитаны методом критического пути.',
+            problem_type='project_scheduling',
+            total_value=project_duration,
+            path=critical_path,
+            selected_edges=critical_edges,
+            event_early_times=early_times,
+            event_late_times=late_times,
+            work_reserves=reserve_by_work,
+            details={
+                'project_duration': project_duration,
+                'total_cost': total_cost,
+                'finish_event': finish_event,
+                'critical_work_count': len(critical_edges),
+            },
+        )
 
     def prewinning_tictactoe_configuration(self) -> NetworkResult:
         board = self.problem.board
@@ -536,6 +730,120 @@ class NetworkSolver:
             total_value=total_cost,
             flows=flows,
         )
+
+    def _build_project_adjacency(self) -> Dict[str, List[Edge]]:
+        adjacency: Dict[str, List[Edge]] = {node: [] for node in self.problem.nodes}
+        for edge in self.problem.edges:
+            adjacency[edge.start].append(edge)
+        for node in adjacency:
+            adjacency[node].sort(key=lambda edge: (self._node_sort_key(edge.end), edge.weight, edge.cost))
+        return adjacency
+
+    def _build_project_incoming(self) -> Dict[str, List[Edge]]:
+        incoming: Dict[str, List[Edge]] = {node: [] for node in self.problem.nodes}
+        for edge in self.problem.edges:
+            incoming[edge.end].append(edge)
+        for node in incoming:
+            incoming[node].sort(key=lambda edge: (self._node_sort_key(edge.start), edge.weight, edge.cost))
+        return incoming
+
+    def _topological_order(self, adjacency: Dict[str, List[Edge]]) -> List[str]:
+        in_degree = {node: 0 for node in self.problem.nodes}
+        for edges in adjacency.values():
+            for edge in edges:
+                in_degree[edge.end] += 1
+
+        queue = deque(sorted([node for node in self.problem.nodes if in_degree[node] == 0], key=self._node_sort_key))
+        order: List[str] = []
+
+        while queue:
+            current = queue.popleft()
+            order.append(current)
+            for edge in adjacency[current]:
+                in_degree[edge.end] -= 1
+                if in_degree[edge.end] == 0:
+                    queue.append(edge.end)
+            queue = deque(sorted(queue, key=self._node_sort_key))
+
+        if len(order) != len(self.problem.nodes):
+            raise ValueError('Сетевой график должен быть ациклическим. В найденном графе есть цикл.')
+
+        self._write_table(
+            title='Топологический порядок событий',
+            headers=['№', 'Событие'],
+            rows=[[index, node] for index, node in enumerate(order, start=1)],
+            note='Порядок используется для прямого и обратного прохода метода критического пути.',
+        )
+        return order
+
+    def _find_critical_path(
+        self,
+        adjacency: Dict[str, List[Edge]],
+        early_times: Dict[str, Number],
+        reserve_by_work: Dict[Tuple[str, str], Number],
+        finish_event: str,
+    ) -> List[str]:
+        if self.problem.source is not None:
+            start_events = [self.problem.source]
+        else:
+            incoming = self._build_project_incoming()
+            start_events = [node for node in self.problem.nodes if len(incoming[node]) == 0 and abs(early_times[node]) <= EPS]
+            start_events.sort(key=self._node_sort_key)
+
+        for start_event in start_events:
+            path = self._find_critical_path_from_event(
+                current_event=start_event,
+                finish_event=finish_event,
+                adjacency=adjacency,
+                early_times=early_times,
+                reserve_by_work=reserve_by_work,
+                visited=set(),
+            )
+            if path:
+                return path
+        return []
+
+    def _find_critical_path_from_event(
+        self,
+        current_event: str,
+        finish_event: str,
+        adjacency: Dict[str, List[Edge]],
+        early_times: Dict[str, Number],
+        reserve_by_work: Dict[Tuple[str, str], Number],
+        visited: Set[str],
+    ) -> List[str]:
+        if current_event == finish_event:
+            return [current_event]
+        if current_event in visited:
+            return []
+
+        visited.add(current_event)
+        candidate_edges = []
+        for edge in adjacency[current_event]:
+            full_reserve = reserve_by_work.get((edge.start, edge.end), INF)
+            lies_on_longest_chain = abs(early_times[edge.end] - early_times[edge.start] - edge.weight) <= EPS
+            if abs(full_reserve) <= EPS and lies_on_longest_chain:
+                candidate_edges.append(edge)
+
+        candidate_edges.sort(key=lambda edge: (self._node_sort_key(edge.end), edge.weight, edge.cost))
+        for edge in candidate_edges:
+            tail_path = self._find_critical_path_from_event(
+                current_event=edge.end,
+                finish_event=finish_event,
+                adjacency=adjacency,
+                early_times=early_times,
+                reserve_by_work=reserve_by_work,
+                visited=set(visited),
+            )
+            if tail_path:
+                return [current_event] + tail_path
+        return []
+
+    def _node_sort_key(self, node: str) -> Tuple[int, object]:
+        text = str(node)
+        if text.isdigit():
+            return 0, int(text)
+        return 1, text
 
     def _best_tictactoe_line_after_move(
         self,

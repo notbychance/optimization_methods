@@ -44,3 +44,7 @@ class NetworkResult:
     flows: Optional[Dict[Tuple[str, str], Number]] = None
     distances: Optional[Dict[str, Number]] = None
     winning_moves: Optional[List[Dict[str, object]]] = None
+    event_early_times: Optional[Dict[str, Number]] = None
+    event_late_times: Optional[Dict[str, Number]] = None
+    work_reserves: Optional[Dict[Tuple[str, str], Number]] = None
+    details: Dict[str, object] = field(default_factory=dict)

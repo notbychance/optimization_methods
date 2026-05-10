@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from typing import Dict, Tuple
 
-from graph_models import Edge, NetworkResult, Number
+from graph_models import NetworkResult, Number
 from network_algorithms import NetworkSolver
 from problem_reader import ProblemReader
 from snapshot import SnapshotWriter
@@ -11,7 +10,7 @@ from snapshot import SnapshotWriter
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Решение задач сетевых моделей и дополнительного 17-го варианта: предвыигрышная конфигурация крестиков-ноликов.'
+        description='Решение задач сетевых моделей, проверки предвыигрышной конфигурации и сетевого планирования.'
     )
     parser.add_argument(
         '--input',
@@ -43,15 +42,46 @@ def print_result(result: NetworkResult) -> None:
     print('Сообщение:', result.message)
 
     if result.total_value is not None:
-        print('Итоговое значение:', format_number(result.total_value))
+        if result.problem_type == 'project_scheduling':
+            print('Продолжительность комплекса работ:', format_number(result.total_value))
+        else:
+            print('Итоговое значение:', format_number(result.total_value))
+
+    if result.details:
+        if 'total_cost' in result.details:
+            print('Суммарная стоимость работ:', format_number(result.details['total_cost']))
+        if 'finish_event' in result.details:
+            print('Завершающее событие:', result.details['finish_event'])
 
     if result.path is not None:
         print('Путь:', ' -> '.join(result.path))
 
     if result.selected_edges is not None:
-        print('Выбранные ребра:')
-        for edge in result.selected_edges:
-            print(f'  {edge.start} - {edge.end}; вес = {format_number(edge.weight)}')
+        if result.problem_type == 'project_scheduling':
+            print('Критические работы:')
+            for edge in result.selected_edges:
+                print(
+                    f'  ({edge.start}; {edge.end}); продолжительность = {format_number(edge.weight)}; стоимость = {format_number(edge.cost)}'
+                )
+        else:
+            print('Выбранные ребра:')
+            for edge in result.selected_edges:
+                print(f'  {edge.start} - {edge.end}; вес = {format_number(edge.weight)}')
+
+    if result.event_early_times is not None and result.event_late_times is not None:
+        print('Временные характеристики событий:')
+        for node in sorted(result.event_early_times.keys(), key=node_sort_key):
+            early = result.event_early_times[node]
+            late = result.event_late_times[node]
+            reserve = late - early
+            print(
+                f'  событие {node}: ранний срок = {format_number(early)}, поздний срок = {format_number(late)}, резерв = {format_number(reserve)}'
+            )
+
+    if result.work_reserves is not None:
+        print('Полные резервы работ:')
+        for start, end in sorted(result.work_reserves.keys(), key=lambda pair: (node_sort_key(pair[0]), node_sort_key(pair[1]))):
+            print(f'  ({start}; {end}): {format_number(result.work_reserves[(start, end)])}')
 
     if result.flows is not None:
         print('Ненулевые потоки:')
@@ -76,12 +106,19 @@ def print_result(result: NetworkResult) -> None:
                 )
 
 
-def format_number(value: Number) -> str:
+def format_number(value: object) -> str:
     if isinstance(value, float):
         if value.is_integer():
             return str(int(value))
         return f'{value:.6g}'
     return str(value)
+
+
+def node_sort_key(node: str) -> tuple[int, object]:
+    text = str(node)
+    if text.isdigit():
+        return 0, int(text)
+    return 1, text
 
 
 if __name__ == '__main__':
