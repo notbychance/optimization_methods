@@ -10,6 +10,8 @@ from dp_models import (
     KnapsackItem,
     KnapsackProblem,
     KnapsackResult,
+    MultiplicativeConstraintProblem,
+    MultiplicativeConstraintResult,
     Stage,
     Transition,
 )
@@ -246,6 +248,205 @@ class DynamicProgrammingSolver:
             initial_state=problem.initial_state,
             path=path,
             message='Оптимальная стратегия найдена методом обратной прогонки.',
+        )
+
+
+    def solve_multiplicative_constraint(self, problem: MultiplicativeConstraintProblem) -> MultiplicativeConstraintResult:
+        """Решение 17-го варианта ЛР 6 без изменения условия.
+
+        Условие из варианта: max sum(y_i^2), product(y_i)=c, y_i >= 0.
+        Для n >= 2 задача не имеет конечного максимума: значение целевой
+        функции можно неограниченно увеличивать, сохраняя произведение.
+        """
+        optimization = problem.optimization.lower()
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_text(
+                title='Исходное условие варианта 17',
+                lines=[
+                    problem.condition_summary,
+                    '',
+                    f'Критерий оптимизации: {optimization}.',
+                    f'Параметр n во входном файле: {problem.raw_n}.',
+                    f'Параметр c во входном файле: {problem.raw_c}.',
+                ],
+            )
+            self.snapshot_writer.write_text(
+                title='Декомпозиция динамического программирования',
+                lines=[
+                    'Этап i соответствует выбору переменной y_i.',
+                    'Состояние p_i — произведение, которое должно быть обеспечено переменными y_i, y_{i+1}, ..., y_n.',
+                    'Рекуррентная форма для задачи максимизации:',
+                    'F_i(p) = sup { y_i^2 + F_{i+1}(p / y_i) }, y_i > 0.',
+                    'Граничный этап: F_n(p) = p^2.',
+                    'Если p = 0, допустимы решения с хотя бы одной нулевой переменной на оставшихся этапах.',
+                ],
+            )
+
+        if problem.n is None or problem.c is None:
+            if self.snapshot_writer is not None:
+                self.snapshot_writer.write_text(
+                    title='Недостаточно числовых данных',
+                    lines=[
+                        'В методичке для 17-го варианта указаны параметры n и c символически.',
+                        'Программа не подставляет искусственные значения, поэтому расчет завершен штатным статусом input_required.',
+                        'Для численной проверки можно задать, например:',
+                        '{',
+                        '  "problem_type": "multiplicative_constraint_dynamic_programming",',
+                        '  "optimization": "max",',
+                        '  "parameters": {"n": 3, "c": 10}',
+                        '}',
+                    ],
+                )
+            return MultiplicativeConstraintResult(
+                status='input_required',
+                objective_value=None,
+                n=problem.n,
+                c=problem.c,
+                variables={},
+                message='Для 17-го варианта в условии не заданы конкретные числовые значения n и c.',
+            )
+
+        if problem.n <= 0:
+            raise ValueError('Параметр n должен быть положительным целым числом.')
+
+        if problem.c < 0:
+            if self.snapshot_writer is not None:
+                self.snapshot_writer.write_text(
+                    title='Проверка допустимости',
+                    lines=[
+                        'Все переменные y_i должны быть неотрицательными.',
+                        f'Произведение неотрицательных переменных не может быть равно c = {self._format_number(problem.c)} < 0.',
+                        'Следовательно, допустимых решений нет.',
+                    ],
+                )
+            return MultiplicativeConstraintResult(
+                status='infeasible',
+                objective_value=None,
+                n=problem.n,
+                c=problem.c,
+                variables={},
+                message='Допустимых решений нет: произведение неотрицательных переменных не может быть отрицательным.',
+            )
+
+        if optimization == 'max':
+            return self._solve_multiplicative_max(problem)
+
+        return self._solve_multiplicative_min(problem)
+
+    def _solve_multiplicative_max(self, problem: MultiplicativeConstraintProblem) -> MultiplicativeConstraintResult:
+        if problem.n == 1:
+            value = problem.c * problem.c
+            variables = {'y1': problem.c}
+            if self.snapshot_writer is not None:
+                self.snapshot_writer.write_table(
+                    title='Частный случай n = 1',
+                    headers=['Переменная', 'Значение'],
+                    rows=[['y1', problem.c]],
+                    notes='При n = 1 ограничение y1 = c однозначно задает решение.',
+                )
+            return MultiplicativeConstraintResult(
+                status='optimal',
+                objective_value=value,
+                n=problem.n,
+                c=problem.c,
+                variables=variables,
+                message='Оптимальное решение найдено: при n = 1 допустимое решение единственно.',
+            )
+
+        rows: List[List[object]] = []
+        for t in [10, 100, 1000]:
+            if problem.c == 0:
+                y1 = 0
+                y2 = t
+                other_value = 1
+                objective = y1 * y1 + y2 * y2 + max(problem.n - 2, 0) * other_value * other_value
+                product_expression = '0'
+            else:
+                y1 = t
+                y2 = problem.c / t
+                other_value = 1
+                objective = y1 * y1 + y2 * y2 + max(problem.n - 2, 0) * other_value * other_value
+                product_expression = self._format_number(problem.c)
+
+            rows.append([
+                t,
+                self._format_number(y1),
+                self._format_number(y2),
+                self._format_number(other_value) if problem.n > 2 else '-',
+                product_expression,
+                self._format_number(objective),
+            ])
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_table(
+                title='Проверка ограниченности целевой функции',
+                headers=['t', 'y1', 'y2', 'y3..yn', 'Произведение', 'z(t)'],
+                rows=rows,
+                notes=(
+                    'Построена допустимая последовательность решений. При t -> бесконечность '
+                    'значение z(t) также стремится к бесконечности, а произведение остается равным c.'
+                ),
+            )
+            self.snapshot_writer.write_text(
+                title='Вывод',
+                lines=[
+                    'Для n >= 2 задача максимизации не имеет конечного оптимального решения.',
+                    'Это не ошибка программы: условие варианта сохранено без исправления.',
+                    'Статус решения: unbounded.',
+                ],
+            )
+
+        return MultiplicativeConstraintResult(
+            status='unbounded',
+            objective_value=None,
+            n=problem.n,
+            c=problem.c,
+            variables={},
+            message='Задача не ограничена сверху: конечного максимума не существует при n >= 2.',
+        )
+
+    def _solve_multiplicative_min(self, problem: MultiplicativeConstraintProblem) -> MultiplicativeConstraintResult:
+        if problem.c == 0:
+            variables = {f'y{index}': 0 for index in range(1, problem.n + 1)}
+            if self.snapshot_writer is not None:
+                self.snapshot_writer.write_table(
+                    title='Частный случай c = 0 для минимизации',
+                    headers=['Переменная', 'Значение'],
+                    rows=[[name, value] for name, value in variables.items()],
+                    notes='Все переменные равны нулю: произведение равно 0, сумма квадратов минимальна и равна 0.',
+                )
+            return MultiplicativeConstraintResult(
+                status='optimal',
+                objective_value=0,
+                n=problem.n,
+                c=problem.c,
+                variables=variables,
+                message='Минимум равен 0 при всех y_i = 0.',
+            )
+
+        equal_value = problem.c ** (1 / problem.n)
+        objective_value = problem.n * (equal_value ** 2)
+        variables = {f'y{index}': equal_value for index in range(1, problem.n + 1)}
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_table(
+                title='Решение родственной задачи минимизации',
+                headers=['Переменная', 'Значение'],
+                rows=[[name, value] for name, value in variables.items()],
+                notes=(
+                    'Этот блок используется только если во входном файле явно указан optimization = min. '
+                    'Для исходного 17-го варианта стоит optimization = max.'
+                ),
+            )
+
+        return MultiplicativeConstraintResult(
+            status='optimal',
+            objective_value=objective_value,
+            n=problem.n,
+            c=problem.c,
+            variables=variables,
+            message='Минимум найден в точке равных переменных.',
         )
 
     def _validate_knapsack_problem(self, problem: KnapsackProblem) -> None:

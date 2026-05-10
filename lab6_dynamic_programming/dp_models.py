@@ -45,6 +45,16 @@ class FiniteHorizonProblem:
 
 
 @dataclass(frozen=True)
+class MultiplicativeConstraintProblem:
+    optimization: str
+    n: Optional[int]
+    c: Optional[Number]
+    raw_n: Optional[object] = None
+    raw_c: Optional[object] = None
+    condition_summary: str = ''
+
+
+@dataclass(frozen=True)
 class KnapsackResult:
     status: str
     objective_value: Number
@@ -59,4 +69,14 @@ class FiniteHorizonResult:
     objective_value: Number
     initial_state: str
     path: List[Dict[str, Union[str, Number]]]
+    message: str
+
+
+@dataclass(frozen=True)
+class MultiplicativeConstraintResult:
+    status: str
+    objective_value: Optional[Number]
+    n: Optional[int]
+    c: Optional[Number]
+    variables: Dict[str, Number]
     message: str

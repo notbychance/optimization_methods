@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from typing import Union
 
-from dp_models import FiniteHorizonProblem, KnapsackProblem
+from dp_models import FiniteHorizonProblem, KnapsackProblem, MultiplicativeConstraintProblem
 from dynamic_programming import DynamicProgrammingSolver
 from problem_reader import ProblemReader
 from snapshot import SnapshotWriter
@@ -53,13 +53,26 @@ def main() -> None:
                 f"  Этап {step['stage']}: {step['state']} --{step['decision']} "
                 f"({format_number(step['value'])})--> {step['next_state']}"
             )
+    elif isinstance(problem, MultiplicativeConstraintProblem):
+        result = solver.solve_multiplicative_constraint(problem)
+        print('Статус:', result.status)
+        print('Сообщение:', result.message)
+        print('n:', '-' if result.n is None else result.n)
+        print('c:', '-' if result.c is None else format_number(result.c))
+        print('Значение целевой функции:', format_number(result.objective_value))
+        if result.variables:
+            print('Значения переменных:')
+            for variable_name, value in result.variables.items():
+                print(f'  {variable_name} = {format_number(value)}')
     else:
         raise TypeError('Неизвестный тип задачи.')
 
     print('Файл со снимками:', args.snapshot)
 
 
-def format_number(value: Union[int, float]) -> str:
+def format_number(value: Union[int, float, None]) -> str:
+    if value is None:
+        return '-'
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
