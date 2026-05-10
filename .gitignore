@@ -139,3 +139,6 @@ dmypy.json
 *.zip
 *.docx
 *.doc
+
+# Ignore example results
+results/
