@@ -20,16 +20,16 @@
 Из корня проекта:
 
 ```bash
-python main.py -n 1 -i lab1_linear_programming/examples/lab1_variant17.json -s results/lab1_variant17.md
+python main.py -n 1 -i lab1_linear_programming/examples/lab1_example.json -s results/lab1.md
 ```
 
 Или из каталога лабораторной:
 
 ```bash
-python main.py -i examples/lab1_variant17.json -s ../results/lab1_variant17.md
+python main.py -i examples/lab1_example.json -s ../results/lab1.md
 ```
 
 После запуска будут созданы:
 
-- `results/lab1_variant17.md` — отчет;
-- `results/lab1_variant17.png` — графическая интерпретация решения.
+- `results/lab1.md` — отчет;
+- `results/lab1.png` — графическая интерпретация решения.

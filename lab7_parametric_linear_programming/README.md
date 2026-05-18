@@ -27,7 +27,7 @@ lab7_parametric_linear_programming/
 ├── README.md
 └── examples/
     ├── lab7_objective_parameter_example.json
-    └── lab7_rhs_parameter_example.json
+    └── lab7_example.json
 ```
 
 | Файл | Назначение |
@@ -45,13 +45,13 @@ lab7_parametric_linear_programming/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab7_rhs_parameter_example.json -s parametric_lp_snapshot.md
+python main.py -i examples/lab7_example.json -s parametric_lp_snapshot.md
 ```
 
 Из корня проекта:
 
 ```bash
-python main.py -n 7 -i lab7_rhs_parameter_example.json -o results/lab7_parametric_lp.md
+python main.py -n 7 -i lab7_example.json -o results/lab7.md
 ```
 
 ## Формат JSON

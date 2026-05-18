@@ -27,7 +27,7 @@ lab9_integer_linear_programming/
 ├── snapshot.py
 ├── README.md
 └── examples/
-    ├── lab9_integer_example.json
+    ├── lab9_example.json
     └── lab9_binary_example.json
 ```
 
@@ -47,13 +47,13 @@ lab9_integer_linear_programming/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab9_integer_example.json -s integer_lp_snapshot.md
+python main.py -i examples/lab9_example.json -s integer_lp_snapshot.md
 ```
 
 Из корня проекта:
 
 ```bash
-python main.py -n 9 -i lab9_integer_example.json -o results/lab9_integer_lp.md
+python main.py -n 9 -i lab9_example.json -o results/lab9.md
 ```
 
 ## Формат JSON

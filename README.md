@@ -111,15 +111,15 @@ New-Item -ItemType Directory -Force results
 Команды:
 
 ```bash
-python main.py -n 1 -i lab1_variant17.json -o results/lab1_variant17.md
-python main.py -n 2 -i lab2_example.json -o results/lab2_simplex.md
-python main.py -n 3 -i lab3_dual_example.json -o results/lab3_dual_simplex.md
-python main.py -n 4 -i lab4_transport_example.json -o results/lab4_transportation.md
-python main.py -n 5 -i lab5_tictactoe_concrete_example.json -o results/lab5_network_models.md
-python main.py -n 6 -i lab6_multiplicative_concrete_example.json -o results/lab6_dynamic_programming.md
-python main.py -n 7 -i lab7_rhs_parameter_example.json -o results/lab7_parametric_lp.md
-python main.py -n 8 -i lab8_decision_example.json -o results/lab8_game_theory.md
-python main.py -n 9 -i lab9_integer_example.json -o results/lab9_integer_lp.md
+python main.py -n 1 -i lab1_example.json -o results/lab1.md
+python main.py -n 2 -i lab2_example.json -o results/lab2.md
+python main.py -n 3 -i lab3_example.json -o results/lab3.md
+python main.py -n 4 -i lab4_example.json -o results/lab4.md
+python main.py -n 5 -i lab5_example.json -o results/lab5.md
+python main.py -n 6 -i lab6_example.json -o results/lab6.md
+python main.py -n 7 -i lab7_example.json -o results/lab7.md
+python main.py -n 8 -i lab8_example.json -o results/lab8.md
+python main.py -n 9 -i lab9_example.json -o results/lab9.md
 ```
 
 Полный набор команд приведён в `run_all_labs_commands.md`.
@@ -139,8 +139,16 @@ python main.py -i examples/lab2_example.json -s simplex_snapshot.md
 
 ```bash
 cd lab5_network_models
-python main.py -i examples/lab5_tictactoe_concrete_example.json -s network_snapshot.md
+python main.py -i examples/lab5_example.json -s network_snapshot.md
 ```
+
+
+### Имена JSON-файлов
+
+В каталогах `examples` используется единое правило именования:
+
+- `lab{номер}_example.json` — задача варианта 17 для соответствующей лабораторной;
+- `lab{номер}_{тип}_example.json` — дополнительные демонстрационные файлы другого типа.
 
 ## Входные данные
 

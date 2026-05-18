@@ -21,9 +21,10 @@ lab6_dynamic_programming/
 ├── snapshot.py
 ├── README.md
 └── examples/
+    ├── lab6_example.json
+    ├── lab6_multiplicative_concrete_example.json
     ├── lab6_knapsack_example.json
-    ├── lab6_finite_horizon_example.json
-    └── lab6_multiplicative_concrete_example.json
+    └── lab6_finite_horizon_example.json
 ```
 
 | Файл | Назначение |
@@ -40,13 +41,13 @@ lab6_dynamic_programming/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab6_multiplicative_concrete_example.json -s dynamic_programming_snapshot.md
+python main.py -i examples/lab6_example.json -s dynamic_programming_snapshot.md
 ```
 
 Из корня проекта:
 
 ```bash
-python main.py -n 6 -i lab6_multiplicative_concrete_example.json -o results/lab6_dynamic_programming.md
+python main.py -n 6 -i lab6_example.json -o results/lab6.md
 ```
 
 ## Формат JSON для `knapsack`

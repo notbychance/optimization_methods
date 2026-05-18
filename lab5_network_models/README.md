@@ -25,12 +25,12 @@ lab5_network_models/
 ├── snapshot.py
 ├── README.md
 └── examples/
+    ├── lab5_example.json
     ├── lab5_mst_example.json
     ├── lab5_shortest_path_example.json
     ├── lab5_max_flow_example.json
     ├── lab5_min_cost_flow_example.json
-    ├── lab5_tictactoe_concrete_example.json
-    └── lab5_project_scheduling_variant17.json
+    └── lab5_tictactoe_example.json
 ```
 
 | Файл | Назначение |
@@ -47,13 +47,13 @@ lab5_network_models/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab5_project_scheduling_variant17.json -s network_snapshot.md
+python main.py -i examples/lab5_example.json -s network_snapshot.md
 ```
 
 Для проверки поля:
 
 ```bash
-python main.py -i examples/lab5_tictactoe_concrete_example.json -s tictactoe_snapshot.md
+python main.py -i examples/lab5_tictactoe_example.json -s tictactoe_snapshot.md
 ```
 
 ## Общий формат графовой задачи
@@ -142,7 +142,7 @@ python main.py -i examples/lab5_tictactoe_concrete_example.json -s tictactoe_sna
 9. продолжительность комплекса работ;
 10. суммарную стоимость работ.
 
-Для файла `examples/lab5_project_scheduling_variant17.json` результат должен быть:
+Для файла `examples/lab5_example.json` результат должен быть:
 
 ```text
 Продолжительность комплекса работ: 21

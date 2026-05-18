@@ -25,7 +25,7 @@ lab3_dual_simplex/
 ├── snapshot.py
 ├── README.md
 └── examples/
-    ├── lab3_dual_example.json
+    ├── lab3_example.json
     └── lab3_tableau_example.json
 ```
 
@@ -43,7 +43,7 @@ lab3_dual_simplex/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab3_dual_example.json -s dual_simplex_snapshot.md
+python main.py -i examples/lab3_example.json -s dual_simplex_snapshot.md
 ```
 
 Запуск с готовой таблицей:
@@ -55,7 +55,7 @@ python main.py -i examples/lab3_tableau_example.json -s dual_tableau_snapshot.md
 Из корня проекта:
 
 ```bash
-python main.py -n 3 -i lab3_dual_example.json -o results/lab3_dual_simplex.md
+python main.py -n 3 -i lab3_example.json -o results/lab3_dual_simplex.md
 ```
 
 ## Формат JSON: режим `model`

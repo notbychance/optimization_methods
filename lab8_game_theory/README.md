@@ -55,6 +55,7 @@ lab8_game_theory/
 ├── snapshot.py
 ├── README.md
 └── examples/
+    ├── lab8_example.json
     ├── lab8_matrix_game_example.json
     ├── lab8_decision_example.json
     └── lab8_bimatrix_example.json
@@ -76,13 +77,13 @@ lab8_game_theory/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab8_decision_example.json -s game_theory_snapshot.md
+python main.py -i examples/lab8_example.json -s game_theory_snapshot.md
 ```
 
 Из корня проекта:
 
 ```bash
-python main.py -n 8 -i lab8_decision_example.json -o results/lab8_game_theory.md
+python main.py -n 8 -i lab8_example.json -o results/lab8.md
 ```
 
 ## Формат JSON для `matrix_game`

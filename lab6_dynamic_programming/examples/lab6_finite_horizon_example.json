@@ -1,17 +1,64 @@
 {
-  "source": "МУ_ЛР_Методы_оптимизации, ЛР 6, вариант 17",
-  "variant_number": 17,
-  "problem_type": "multiplicative_constraint_dynamic_programming",
-  "condition_summary": "Решить задачу методом динамического программирования: максимизировать z = y1^2 + y2^2 + ... + yn^2 при условии y1*y2*...*yn = c, yi >= 0, i = 1, 2, ..., n.",
-  "optimization": "max",
-  "objective": "z = y1^2 + y2^2 + ... + yn^2",
-  "constraints": [
-    "y1 * y2 * ... * yn = c",
-    "yi >= 0, i = 1, 2, ..., n"
-  ],
-  "parameters": {
-    "n": "n",
-    "c": "c"
+  "problem_type": "finite_horizon",
+  "optimization": "min",
+  "initial_state": "S0",
+  "terminal_values": {
+    "T1": 0,
+    "T2": 0
   },
-  "note": "В методичке для варианта 17 не заданы конкретные числовые значения n и c; условие сохранено без подстановки искусственных чисел."
+  "stages": [
+    {
+      "name": "1",
+      "states": [
+        "S0"
+      ],
+      "transitions": [
+        {
+          "state": "S0",
+          "decision": "A",
+          "next_state": "S1",
+          "value": 5
+        },
+        {
+          "state": "S0",
+          "decision": "B",
+          "next_state": "S2",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "2",
+      "states": [
+        "S1",
+        "S2"
+      ],
+      "transitions": [
+        {
+          "state": "S1",
+          "decision": "C",
+          "next_state": "T1",
+          "value": 4
+        },
+        {
+          "state": "S1",
+          "decision": "D",
+          "next_state": "T2",
+          "value": 7
+        },
+        {
+          "state": "S2",
+          "decision": "E",
+          "next_state": "T1",
+          "value": 6
+        },
+        {
+          "state": "S2",
+          "decision": "F",
+          "next_state": "T2",
+          "value": 2
+        }
+      ]
+    }
+  ]
 }

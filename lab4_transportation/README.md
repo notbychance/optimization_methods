@@ -23,7 +23,7 @@ lab4_transportation/
 ├── transportation.py
 ├── README.md
 └── examples/
-    ├── lab4_transport_example.json
+    ├── lab4_example.json
     └── lab4_unbalanced_example.json
 ```
 
@@ -40,13 +40,13 @@ lab4_transportation/
 Из каталога модуля:
 
 ```bash
-python main.py -i examples/lab4_transport_example.json -s transportation_snapshot.md
+python main.py -i examples/lab4_example.json -s transportation_snapshot.md
 ```
 
 Из корня проекта:
 
 ```bash
-python main.py -n 4 -i lab4_transport_example.json -o results/lab4_transportation.md
+python main.py -n 4 -i lab4_example.json -o results/lab4.md
 ```
 
 ## Формат JSON
