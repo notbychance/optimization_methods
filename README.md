@@ -19,6 +19,7 @@
 .
 ├── main.py
 ├── run_all_labs_commands.md
+├── lab1_linear_programming/
 ├── lab2_simplex/
 ├── lab3_dual_simplex/
 ├── lab4_transportation/
@@ -35,6 +36,7 @@
 
 | Номер | Каталог | Назначение |
 |---:|---|---|
+| 1 | `lab1_linear_programming` | Линейное программирование: графический метод, угловые точки и график области решений |
 | 2 | `lab2_simplex` | Линейное программирование: двухфазный симплекс-метод |
 | 3 | `lab3_dual_simplex` | Линейное программирование: двойственный симплекс-метод и матричное представление базиса |
 | 4 | `lab4_transportation` | Транспортная задача: начальный план и оптимизация методом потенциалов |
@@ -76,7 +78,7 @@ python main.py -n НОМЕР -i ВХОДНОЙ_ФАЙЛ.json -o РЕЗУЛЬТА
 
 | Параметр | Короткая форма | Описание |
 |---|---|---|
-| `--number` | `-n` | Номер модуля: от 2 до 9 |
+| `--number` | `-n` | Номер модуля: от 1 до 9 |
 | `--input` | `-i` | Путь к входному JSON-файлу |
 | `--snapshot`, `--output`, `--export` | `-s`, `-o` | Путь к Markdown-файлу результата |
 
@@ -109,6 +111,7 @@ New-Item -ItemType Directory -Force results
 Команды:
 
 ```bash
+python main.py -n 1 -i lab1_variant17.json -o results/lab1_variant17.md
 python main.py -n 2 -i lab2_example.json -o results/lab2_simplex.md
 python main.py -n 3 -i lab3_dual_example.json -o results/lab3_dual_simplex.md
 python main.py -n 4 -i lab4_transport_example.json -o results/lab4_transportation.md

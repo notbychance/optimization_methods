@@ -19,6 +19,7 @@ New-Item -ItemType Directory -Force results
 ## Полный запуск по одному примеру на модуль
 
 ```bash
+python main.py -n 1 -i lab1_variant17.json -o results/lab1_variant17.md
 python main.py -n 2 -i lab2_example.json -o results/lab2_simplex.md
 python main.py -n 3 -i lab3_dual_example.json -o results/lab3_dual_simplex.md
 python main.py -n 4 -i lab4_transport_example.json -o results/lab4_transportation.md
@@ -29,9 +30,18 @@ python main.py -n 8 -i lab8_decision_example.json -o results/lab8_game_theory.md
 python main.py -n 9 -i lab9_integer_example.json -o results/lab9_integer_lp.md
 ```
 
+## Модуль 1: графический метод линейного программирования
+
+```bash
+python main.py -n 1 -i lab1_variant17.json -o results/lab1_variant17.md
+```
+
+После запуска создаются Markdown-отчет и PNG-график области допустимых решений.
+
 ## Модуль 2: двухфазный симплекс-метод
 
 ```bash
+python main.py -n 1 -i lab1_variant17.json -o results/lab1_variant17.md
 python main.py -n 2 -i lab2_example.json -o results/lab2_simplex.md
 ```
 

@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 
 TASK_DIRECTORIES: Dict[int, str] = {
+    1: "lab1_linear_programming",
     2: "lab2_simplex",
     3: "lab3_dual_simplex",
     4: "lab4_transportation",
@@ -19,6 +20,7 @@ TASK_DIRECTORIES: Dict[int, str] = {
 }
 
 TASK_TITLES: Dict[int, str] = {
+    1: "Решение задач линейного программирования графическим методом",
     2: "Симплекс-метод",
     3: "Двойственный симплекс-метод",
     4: "Транспортная задача",
@@ -86,7 +88,7 @@ def parse_args() -> argparse.Namespace:
         "-number",
         type=int,
         choices=sorted(TASK_DIRECTORIES.keys()),
-        help="Номер лабораторной работы: от 2 до 9.",
+        help="Номер лабораторной работы: от 1 до 9.",
     )
     parser.add_argument(
         "--input",
@@ -127,13 +129,13 @@ def get_task_number(argument_value: Optional[int]) -> int:
         try:
             task_number = int(raw_value)
         except ValueError:
-            print("Введите целое число от 2 до 9.")
+            print("Введите целое число от 1 до 9.")
             continue
 
         if task_number in TASK_DIRECTORIES:
             return task_number
 
-        print("Неизвестный номер лабораторной работы. Допустимые номера: 2, 3, 4, 5, 6, 7, 8, 9.")
+        print("Неизвестный номер лабораторной работы. Допустимые номера: 1, 2, 3, 4, 5, 6, 7, 8, 9.")
 
 
 def get_required_text_value(
