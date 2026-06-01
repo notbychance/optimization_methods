@@ -143,3 +143,4 @@ dmypy.json
 # Ignore example results
 results/
 examples/
+reports/

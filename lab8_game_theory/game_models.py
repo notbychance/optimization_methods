@@ -80,6 +80,7 @@ class PreventiveMaintenanceProblem:
     random_failure_cost: Fraction
     preventive_repair_cost: Fraction
     max_cycle_months: int
+    calculation_model: str = 'renewal'
     source: Optional[str] = None
     condition_summary: Optional[str] = None
 

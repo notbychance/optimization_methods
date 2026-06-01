@@ -1,50 +1,67 @@
 {
+  "source_description": "Рукописные данные пользователя, ЛР5, задание 2.2: максимальный поток",
   "problem_type": "max_flow",
   "directed": true,
   "nodes": [
-    "S",
-    "A",
-    "B",
-    "C",
-    "T"
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
   ],
   "edges": [
     {
-      "from": "S",
-      "to": "A",
+      "from": "1",
+      "to": "2",
+      "capacity": 16
+    },
+    {
+      "from": "1",
+      "to": "3",
+      "capacity": 13
+    },
+    {
+      "from": "2",
+      "to": "3",
       "capacity": 10
     },
     {
-      "from": "S",
-      "to": "B",
-      "capacity": 8
-    },
-    {
-      "from": "A",
-      "to": "B",
-      "capacity": 2
-    },
-    {
-      "from": "A",
-      "to": "C",
-      "capacity": 5
-    },
-    {
-      "from": "B",
-      "to": "C",
-      "capacity": 7
-    },
-    {
-      "from": "B",
-      "to": "T",
+      "from": "3",
+      "to": "2",
       "capacity": 4
     },
     {
-      "from": "C",
-      "to": "T",
-      "capacity": 10
+      "from": "2",
+      "to": "4",
+      "capacity": 12
+    },
+    {
+      "from": "4",
+      "to": "3",
+      "capacity": 9
+    },
+    {
+      "from": "3",
+      "to": "5",
+      "capacity": 14
+    },
+    {
+      "from": "5",
+      "to": "4",
+      "capacity": 7
+    },
+    {
+      "from": "4",
+      "to": "6",
+      "capacity": 20
+    },
+    {
+      "from": "5",
+      "to": "6",
+      "capacity": 4
     }
   ],
-  "source": "S",
-  "target": "T"
+  "source": "1",
+  "target": "6"
 }

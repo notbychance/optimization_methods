@@ -138,6 +138,8 @@ class ProblemReader:
         if max_cycle_months <= 0:
             raise ValueError('Поле max_cycle_months должно быть положительным целым числом.')
 
+        calculation_model = ProblemReader._read_preventive_maintenance_model(data)
+
         return PreventiveMaintenanceProblem(
             fleet_size=fleet_size,
             failure_probability_by_month=probabilities,
@@ -145,9 +147,58 @@ class ProblemReader:
             random_failure_cost=random_failure_cost,
             preventive_repair_cost=preventive_repair_cost,
             max_cycle_months=max_cycle_months,
+            calculation_model=calculation_model,
             source=str(data.get('source')) if data.get('source') is not None else None,
             condition_summary=str(data.get('condition_summary')) if data.get('condition_summary') is not None else None,
         )
+
+    @staticmethod
+    def _read_preventive_maintenance_model(data: Dict[str, Any]) -> str:
+        """Reads the calculation model for the preventive-maintenance task.
+
+        Supported models:
+        - renewal: an early random failure ends the current cycle;
+        - simplified_fixed_cycle: planned repair is performed every T months, and
+          expected random failures inside the interval are added by sum(p_i).
+        """
+
+        raw_bool = data.get('use_simplified_calculation')
+        if raw_bool is None:
+            raw_bool = data.get('simplified_calculation')
+        if raw_bool is None:
+            raw_bool = data.get('simple_calculation')
+
+        if raw_bool is not None:
+            if isinstance(raw_bool, bool):
+                return 'simplified_fixed_cycle' if raw_bool else 'renewal'
+            normalized_bool = str(raw_bool).strip().lower()
+            if normalized_bool in {'true', '1', 'yes', 'да', 'y'}:
+                return 'simplified_fixed_cycle'
+            if normalized_bool in {'false', '0', 'no', 'нет', 'n'}:
+                return 'renewal'
+            raise ValueError('Флаг use_simplified_calculation должен быть логическим значением.')
+
+        raw_model = data.get('calculation_model', data.get('maintenance_model', data.get('model', 'renewal')))
+        model = str(raw_model).strip().lower().replace('-', '_')
+        aliases = {
+            'renewal': 'renewal',
+            'renewal_model': 'renewal',
+            'decision_tree': 'renewal',
+            'tree': 'renewal',
+            'simplified': 'simplified_fixed_cycle',
+            'simple': 'simplified_fixed_cycle',
+            'simple_fixed_cycle': 'simplified_fixed_cycle',
+            'simplified_fixed_cycle': 'simplified_fixed_cycle',
+            'fixed_cycle': 'simplified_fixed_cycle',
+            'paper': 'simplified_fixed_cycle',
+            'manual': 'simplified_fixed_cycle',
+        }
+        if model not in aliases:
+            raise ValueError(
+                "Поле calculation_model должно быть 'renewal' или 'simplified_fixed_cycle' "
+                "либо используйте логический флаг use_simplified_calculation."
+            )
+        return aliases[model]
 
     @staticmethod
     def _validate_probability(probability, field_name: str) -> None:

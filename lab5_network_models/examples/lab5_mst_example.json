@@ -1,48 +1,60 @@
 {
+  "source": "Рукописные данные пользователя, ЛР5, задание 1: минимальное остовное дерево",
   "problem_type": "mst",
   "directed": false,
   "nodes": [
-    "A",
-    "B",
-    "C",
-    "D",
-    "E"
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
   ],
   "edges": [
     {
-      "from": "A",
-      "to": "B",
-      "weight": 4
+      "from": "1",
+      "to": "2",
+      "weight": 7
     },
     {
-      "from": "A",
-      "to": "C",
-      "weight": 2
+      "from": "1",
+      "to": "3",
+      "weight": 9
     },
     {
-      "from": "B",
-      "to": "C",
-      "weight": 1
+      "from": "1",
+      "to": "6",
+      "weight": 14
     },
     {
-      "from": "B",
-      "to": "D",
-      "weight": 5
-    },
-    {
-      "from": "C",
-      "to": "D",
-      "weight": 8
-    },
-    {
-      "from": "C",
-      "to": "E",
+      "from": "2",
+      "to": "3",
       "weight": 10
     },
     {
-      "from": "D",
-      "to": "E",
+      "from": "2",
+      "to": "4",
+      "weight": 15
+    },
+    {
+      "from": "3",
+      "to": "4",
+      "weight": 11
+    },
+    {
+      "from": "3",
+      "to": "6",
       "weight": 2
+    },
+    {
+      "from": "4",
+      "to": "5",
+      "weight": 6
+    },
+    {
+      "from": "5",
+      "to": "6",
+      "weight": 9
     }
   ]
 }

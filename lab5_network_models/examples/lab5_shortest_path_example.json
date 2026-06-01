@@ -1,50 +1,73 @@
 {
+  "source_description": "Рукописные данные пользователя, ЛР5, задание 2.1: кратчайший путь",
   "problem_type": "shortest_path",
   "directed": true,
   "nodes": [
-    "S",
-    "A",
-    "B",
-    "C",
-    "T"
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7"
   ],
   "edges": [
     {
-      "from": "S",
-      "to": "A",
+      "from": "1",
+      "to": "2",
       "weight": 4
     },
     {
-      "from": "S",
-      "to": "B",
+      "from": "1",
+      "to": "3",
       "weight": 2
     },
     {
-      "from": "A",
-      "to": "C",
-      "weight": 3
-    },
-    {
-      "from": "B",
-      "to": "A",
-      "weight": 1
-    },
-    {
-      "from": "B",
-      "to": "C",
+      "from": "2",
+      "to": "3",
       "weight": 5
     },
     {
-      "from": "C",
-      "to": "T",
+      "from": "2",
+      "to": "4",
+      "weight": 10
+    },
+    {
+      "from": "3",
+      "to": "2",
+      "weight": 1
+    },
+    {
+      "from": "3",
+      "to": "5",
+      "weight": 3
+    },
+    {
+      "from": "5",
+      "to": "4",
+      "weight": 4
+    },
+    {
+      "from": "5",
+      "to": "6",
       "weight": 2
     },
     {
-      "from": "A",
-      "to": "T",
-      "weight": 10
+      "from": "4",
+      "to": "6",
+      "weight": 11
+    },
+    {
+      "from": "4",
+      "to": "7",
+      "weight": 7
+    },
+    {
+      "from": "6",
+      "to": "7",
+      "weight": 1
     }
   ],
-  "source": "S",
-  "target": "T"
+  "source": "1",
+  "target": "7"
 }

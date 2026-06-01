@@ -284,18 +284,16 @@ class DynamicProgrammingSolver:
             )
 
         if problem.n is None or problem.c is None:
+            if optimization == 'max':
+                return self._solve_multiplicative_symbolic_max(problem)
+
             if self.snapshot_writer is not None:
                 self.snapshot_writer.write_text(
-                    title='Недостаточно числовых данных',
+                    title='Недостаточно числовых данных для численной минимизации',
                     lines=[
-                        'В методичке для 17-го варианта указаны параметры n и c символически.',
-                        'Программа не подставляет искусственные значения, поэтому расчет завершен штатным статусом input_required.',
-                        'Для численной проверки можно задать, например:',
-                        '{',
-                        '  "problem_type": "multiplicative_constraint_dynamic_programming",',
-                        '  "optimization": "max",',
-                        '  "parameters": {"n": 3, "c": 10}',
-                        '}',
+                        'В методичке для 17-го варианта параметры n и c заданы символически.',
+                        'Для задачи минимизации нужен численный n или отдельная символическая постановка.',
+                        'Исходный вариант 17 использует направление max; для него программа формирует общий аналитический вывод.',
                     ],
                 )
             return MultiplicativeConstraintResult(
@@ -304,7 +302,7 @@ class DynamicProgrammingSolver:
                 n=problem.n,
                 c=problem.c,
                 variables={},
-                message='Для 17-го варианта в условии не заданы конкретные числовые значения n и c.',
+                message='Для численной минимизации нужно задать конкретные значения n и c.',
             )
 
         if problem.n <= 0:
@@ -333,6 +331,61 @@ class DynamicProgrammingSolver:
             return self._solve_multiplicative_max(problem)
 
         return self._solve_multiplicative_min(problem)
+
+    def _solve_multiplicative_symbolic_max(self, problem: MultiplicativeConstraintProblem) -> MultiplicativeConstraintResult:
+        """Общий аналитический вывод для варианта 17 при символических n и c.
+
+        В условии методички n и c не заданы численно, поэтому задача не
+        требует подстановки искусственных значений. Для максимизации можно
+        сформулировать полный ответ по случаям.
+        """
+        lines = [
+            'В методичке параметры n и c заданы символически, поэтому численная таблица Беллмана не является обязательной.',
+            'Задача решается в общем виде по случаям:',
+            '',
+            '1. Если c < 0, допустимых решений нет, потому что произведение неотрицательных y_i не может быть отрицательным.',
+            '2. Если n = 1 и c >= 0, ограничение задает единственное решение y1 = c, поэтому z = c^2.',
+            '3. Если n >= 2 и c > 0, задача максимизации не ограничена сверху.',
+            '   Достаточно взять y1 = t, y2 = c/t, y3 = ... = yn = 1.',
+            '   Тогда y1*y2*...*yn = c, а z(t) = t^2 + c^2/t^2 + (n - 2) -> бесконечность при t -> бесконечность.',
+            '4. Если n >= 2 и c = 0, задача также не ограничена сверху.',
+            '   Например, y1 = t, y2 = 0, остальные переменные можно взять равными 1; произведение равно 0, а z(t) >= t^2 -> бесконечность.',
+            '',
+            'Следовательно, для основного содержательного случая n >= 2, c >= 0 конечного максимума не существует.',
+            'Статус решения для исходной задачи: symbolic_solution.',
+        ]
+
+        rows = [
+            ['c < 0', 'любое положительное n', 'нет допустимых решений', 'infeasible'],
+            ['c >= 0', 'n = 1', 'y1 = c, z = c^2', 'optimal'],
+            ['c > 0', 'n >= 2', 'z не ограничена сверху', 'unbounded'],
+            ['c = 0', 'n >= 2', 'z не ограничена сверху', 'unbounded'],
+        ]
+
+        if self.snapshot_writer is not None:
+            self.snapshot_writer.write_text(
+                title='Символическое решение варианта 17',
+                lines=lines,
+            )
+            self.snapshot_writer.write_table(
+                title='Итог по случаям',
+                headers=['Условие на c', 'Условие на n', 'Результат', 'Статус'],
+                rows=rows,
+                notes='Так как n и c в варианте 17 заданы символически, итог формулируется не одним числом, а по случаям.',
+            )
+
+        return MultiplicativeConstraintResult(
+            status='symbolic_solution',
+            objective_value=None,
+            n=problem.n,
+            c=problem.c,
+            variables={},
+            message=(
+                'Получено общее решение: при n = 1 и c >= 0 z = c^2; '
+                'при n >= 2 и c >= 0 задача максимизации не ограничена сверху; '
+                'при c < 0 допустимых решений нет.'
+            ),
+        )
 
     def _solve_multiplicative_max(self, problem: MultiplicativeConstraintProblem) -> MultiplicativeConstraintResult:
         if problem.n == 1:

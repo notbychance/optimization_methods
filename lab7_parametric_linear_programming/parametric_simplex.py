@@ -118,27 +118,36 @@ class ParametricSimplexSolver:
         additional_variable_counter = 0
 
         for constraint in problem.constraints:
-            for row in matrix:
-                row.append(Fraction(0))
-
             row = constraint.coefficients[:] + [Fraction(0) for _ in range(len(variable_names) - original_variable_count)]
 
             if constraint.sign == "<=":
+                for previous_row in matrix:
+                    previous_row.append(Fraction(0))
                 additional_variable_counter += 1
                 variable_names.append(f"s{additional_variable_counter}")
                 objective_base.append(Fraction(0))
                 objective_parameter.append(Fraction(0))
                 row.append(Fraction(1))
             elif constraint.sign == ">=":
+                for previous_row in matrix:
+                    previous_row.append(Fraction(0))
                 additional_variable_counter += 1
                 variable_names.append(f"e{additional_variable_counter}")
                 objective_base.append(Fraction(0))
                 objective_parameter.append(Fraction(0))
                 row.append(Fraction(-1))
             elif constraint.sign == "=":
+                # Для равенства дополнительная переменная не вводится.
+                # Поэтому старые строки матрицы не расширяются нулевым столбцом.
                 pass
             else:
                 raise ValueError(f"Недопустимый знак ограничения: {constraint.sign}")
+
+            if len(row) != len(variable_names):
+                raise ValueError(
+                    "Ошибка приведения к стандартной форме: длина строки матрицы "
+                    "не совпадает с количеством переменных."
+                )
 
             matrix.append(row)
             rhs_base.append(constraint.rhs_base)

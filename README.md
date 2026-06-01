@@ -122,8 +122,6 @@ python main.py -n 8 -i lab8_example.json -o results/lab8.md
 python main.py -n 9 -i lab9_example.json -o results/lab9.md
 ```
 
-Полный набор команд приведён в `run_all_labs_commands.md`.
-
 ## Запуск отдельного модуля напрямую
 
 Каждый модуль можно запускать отдельно из его каталога.
